@@ -1,13 +1,19 @@
+import { useParams } from "react-router";
+import * as db from "../../Database";
+
 export default function AssignmentEditor() {
+  const { aid } = useParams();
+  const assignments = db.assignments;
+  const assignment = assignments.find((assignment) => assignment._id === aid);
   return (
     <div id="wd-assignments-editor">
       <div id="wd-assignment-name" className="mb-3">
         <label htmlFor="wd-name" className="form-label">Assignment Name</label>
-        <input id="wd-name" className="form-control" value="A1 - ENV + HTML" />
+        <input id="wd-name" className="form-control" value= {assignment?.title} />
       </div>
 
       <textarea id="wd-description" className="form-control" rows={10}>
-        The assignment is available online Submit a link to the landing page of
+        {assignment?.description}
       </textarea>
 
       <div className="row mt-3">
@@ -15,7 +21,7 @@ export default function AssignmentEditor() {
           <label htmlFor="wd-points">Points</label>
         </div>
         <div className="col-8">
-         <input id="wd-points" className="form-control" value={100} />
+         <input id="wd-points" className="form-control" value={assignment?.points} />
         </div>
       </div>
 
@@ -98,16 +104,16 @@ export default function AssignmentEditor() {
               </div>
               <div className="mb-3">
               <label htmlFor="wd-due-date">Due</label>
-              <input type="date" id="wd-due-date" value="2024-05-13" className="form-control"/>
+              <input type="date" id="wd-due-date" value={assignment?.dueDate} className="form-control"/>
               </div>
               <div className="row mb-3">
                 <div className="col-6">
                   <label htmlFor="">Available from</label>
-                  <input type="date" id="wd-available-from" className="form-control" value="2024-05-06" />
+                  <input type="date" id="wd-available-from" className="form-control" value={assignment?.availableDate} />
                 </div>
                 <div className="col-6">
                   <label htmlFor="">Until</label>
-                  <input type="date" id="wd-available-until"className="form-control" value="2024-05-20" />
+                  <input type="date" id="wd-available-until"className="form-control" value={assignment?.until} />
                 </div>
               </div>
               

@@ -1,12 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { BsGripVertical } from "react-icons/bs";
 import { CiSearch } from "react-icons/ci";
 import { FaPlus } from "react-icons/fa6";
 import { FaCaretDown } from "react-icons/fa";
 import { LuNotebookPen } from "react-icons/lu";
+import { useParams } from "react-router";
+import * as db from "../../Database";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import EachAssignmentControlButtons from "./EachAssignmentControlButtons";
 
 export default function Assignments() {
+  const { cid } = useParams();
+  const assignments = db.assignments;
   return (
     <div id="wd-assignments">
       <div id="input-container" className="d-flex justify-content-between align-items-center mt-2">
@@ -36,17 +41,20 @@ export default function Assignments() {
             <AssignmentControlButtons />
           </div>
           <ul className="wd-assignments list-group rounded-0">
-            <li className="wd-assignment list-group-item p-3 ps-1 d-flex ">
+            {assignments
+              .filter((assignment: any) => assignment.course === cid)
+              .map((assignment: any) => (
+                <li className="wd-assignment list-group-item p-3 ps-1 d-flex ">
               <div className="me-3 d-flex align-items-center">
               <BsGripVertical className="me-1 fs-3" />
               <LuNotebookPen />
               </div>
               <div className="flex-grow-1">
               <a
-                href="#/Kambaz/Courses/1234/Assignments/123"
+                href={`#/Kambaz/Courses/${cid}/Assignments/${assignment._id}`}
                 className="wd-assignment-link"
                 >
-                A1
+                {assignment.title}
               </a>
               <br />
               Multiple Modules |<b> Not available until</b> May 6 at 12:00am |{" "}
@@ -57,50 +65,10 @@ export default function Assignments() {
               <EachAssignmentControlButtons />
               </div>
             </li>
+              ))}
+            
 
-            <li className="wd-assignment list-group-item p-3 ps-1 d-flex">
-              <div className="me-3 d-flex align-items-center">
-              <BsGripVertical className="me-1 fs-3" />
-              <LuNotebookPen />
-              </div>
-              <div className="flex-grow-1">
-              <a
-                href="#/Kambaz/Courses/1234/Assignments/123"
-                className="wd-assignment-link"
-                >
-                A2
-              </a>
-              <br />
-              Multiple Modules |<b> Not available until</b> May 13 at 12:00am |{" "}
-              <br />
-              <b>Due</b> May 20 at 11:59pm | 100 pts
-              </div>
-              <div className="d-flex align-items-center">
-              <EachAssignmentControlButtons />
-              </div>
-            </li>
-
-            <li className="wd-assignment list-group-item p-3 ps-1 d-flex">
-              <div className="me-3 d-flex align-items-center">
-              <BsGripVertical className="me-1 fs-3" />
-              <LuNotebookPen />
-              </div>
-              <div className="flex-grow-1">
-              <a
-                href="#/Kambaz/Courses/1234/Assignments/123"
-                className="wd-assignment-link"
-                >
-                A3
-              </a>
-              <br />
-              Multiple Modules |<b> Not available until</b> May 20 at 12:00am |{" "}
-              <br />
-              <b>Due</b> May 27 at 11:59pm | 100 pts
-              </div>
-              <div className="d-flex align-items-center">
-              <EachAssignmentControlButtons />
-              </div>
-            </li>
+            
           </ul>
 
         </li>
