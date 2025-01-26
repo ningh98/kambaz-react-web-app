@@ -9,6 +9,22 @@ import * as db from "../../Database";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import EachAssignmentControlButtons from "./EachAssignmentControlButtons";
 
+// Helper function to format the date
+// From ChatGpt
+function formatDate(dateString: string) {
+  const date = new Date(dateString); // Parse the date string into a Date object
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short", // Short month (e.g., "May")
+    day: "numeric", // Day of the month (e.g., "6")
+    hour: "numeric", // Hour (e.g., "12")
+    minute: "numeric", // Minute (e.g., "00")
+    hour12: true, // Use 12-hour clock (e.g., "am" or "pm")
+  };
+
+  return new Intl.DateTimeFormat("en-US", options).format(date); // Format the date
+}
+
+
 export default function Assignments() {
   const { cid } = useParams();
   const assignments = db.assignments;
@@ -57,15 +73,18 @@ export default function Assignments() {
                 {assignment.title}
               </a>
               <br />
-              Multiple Modules |<b> Not available until</b> May 6 at 12:00am |{" "}
+              Multiple Modules |<b> Not available until</b> {formatDate(assignment?.availableDate)} |{" "}
               <br />
-              <b>Due</b> May 13 at 11:59pm | 100 pts
+              <b>Due</b> {formatDate(assignment?.dueDate)} | {assignment.points} pts
               </div>
               <div className="d-flex align-items-center">
               <EachAssignmentControlButtons />
               </div>
             </li>
               ))}
+
+{/* May 6 at 12:00am | */}
+{/* May 13 at 11:59pm | 100 pts */}
             
 
             
@@ -78,3 +97,4 @@ export default function Assignments() {
     </div>
   );
 }
+
