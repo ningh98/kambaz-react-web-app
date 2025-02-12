@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import AddingAndRemovingToFromArrays from "./AddingAndRemovingToFromArrays";
 import ArrayIndexAndLength from "./ArrayIndexAndLength";
 import ArrowFunctions from "./ArrowFunctions";
@@ -29,12 +30,16 @@ import Add from "./Add";
 import Square from "./Square";
 import Highlight from "./Highlight";
 import PathParameters from "./PathParameters";
+import Todos from "./Todos";
+
 
 export default function Lab3() {
+  
   console.log('Hello World!');
     return (
       <div>
         <h2>Lab 3</h2>
+        <Todos />
         <VariablesAndConstants />
         <VariableTypes />
         <BooleanVariables />

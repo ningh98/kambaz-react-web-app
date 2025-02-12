@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BsGripVertical } from "react-icons/bs";
 import { CiSearch } from "react-icons/ci";
-import { FaPlus } from "react-icons/fa6";
 import { FaCaretDown } from "react-icons/fa";
 import { LuNotebookPen } from "react-icons/lu";
 import { useParams } from "react-router";
-import * as db from "../../Database";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import EachAssignmentControlButtons from "./EachAssignmentControlButtons";
+import AssignmentsControls from "./AssignmentsControls";
+import { useSelector } from "react-redux";
+
 
 // Helper function to format the date
 // From ChatGpt
@@ -27,7 +28,9 @@ function formatDate(dateString: string) {
 
 export default function Assignments() {
   const { cid } = useParams();
-  const assignments = db.assignments;
+  const { assignments } = useSelector((state: any) => state.assignmentsReducer);
+  const { currentUser } = useSelector((state: any) => state.accountReducer);
+  
   return (
     <div id="wd-assignments">
       <div id="input-container" className="d-flex justify-content-between align-items-center mt-2">
@@ -36,10 +39,7 @@ export default function Assignments() {
           <input placeholder="Search..." id="wd-search-assignment" style={{ height: "calc(2.375rem + 2px)" }}/>
         </div>
         
-        <div>
-          <button id="wd-add-assignment" className="btn btn-lg btn-danger me-1 float-end"><FaPlus className="position-relative me-2" style={{ bottom: "1px" }} /> Assignment</button>
-          <button id="wd-add-assignment-group" className="btn btn-lg me-1 float-end btn-secondary"><FaPlus className="position-relative me-2" style={{ bottom: "1px" }} />Group</button>
-        </div>
+        {currentUser?.role === "FACULTY" && <AssignmentsControls />}
       </div>
 
       <br />
@@ -78,14 +78,11 @@ export default function Assignments() {
               <b>Due</b> {formatDate(assignment?.dueDate)} | {assignment.points} pts
               </div>
               <div className="d-flex align-items-center">
-              <EachAssignmentControlButtons />
+              {currentUser?.role === "FACULTY" && <EachAssignmentControlButtons assignment={assignment}/>}
               </div>
             </li>
               ))}
 
-{/* May 6 at 12:00am | */}
-{/* May 13 at 11:59pm | 100 pts */}
-            
 
             
           </ul>

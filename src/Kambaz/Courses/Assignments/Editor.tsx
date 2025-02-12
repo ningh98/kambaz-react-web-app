@@ -1,27 +1,95 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams } from "react-router";
-import * as db from "../../Database";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { addAssignment, updateAssignment } from "./reducer";
+import { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 export default function AssignmentEditor() {
-  const { aid } = useParams();
-  const assignments = db.assignments;
-  const assignment = assignments.find((assignment) => assignment._id === aid);
+  const { cid, aid } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { assignments } = useSelector((state: any) => state.assignmentsReducer);
+  const isNewAssignment = aid === "new";
+  const existingAssignment = assignments.find((assignment: { _id: string | undefined; }) => assignment._id === aid);
+  const [assignment, setAssignment] = useState(existingAssignment ||{
+    _id: "",
+    title: "New Assignment",
+    description: "New Assignment Description",
+    points: 100,
+    dueDate: "",
+    availableDate: "",
+    until: "",
+    course: cid, 
+  });
+
+  const validate = () => {
+
+    if (!assignment.title.trim()) {
+      alert("Please enter a title for the assignment.");
+      return false;
+    }
+    if (!assignment.description.trim()) {
+      alert("Please enter the description for the assignment.");
+      return false;
+    }
+    if (!assignment.points) {
+      alert("Please enter the points for the assignment.");
+      return false;
+    }
+    if (!assignment.dueDate) {
+      alert("Please select a due date.");
+      return false;
+    }
+    if (!assignment.availableDate) {
+      alert("Please select a available from date.");
+      return false;
+    }
+    if (!assignment.until) {
+      alert("Please select a available until date.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setAssignment({ ...assignment, [e.target.name]: e.target.value})
+  }
+
+  const handleSave = () => {
+    if (!validate()) return;
+
+    if (isNewAssignment) {
+      // Create a new assignment
+      const newAssignment = { ...assignment, _id: uuidv4() };
+      dispatch(addAssignment(newAssignment));
+      console.log(newAssignment);
+    } else {
+      dispatch(updateAssignment(assignment));
+    }
+    
+
+    navigate(`/Kambaz/Courses/${cid}/Assignments`);
+  };
+
   return (
     <div id="wd-assignments-editor">
       <div id="wd-assignment-name" className="mb-3">
         <label htmlFor="wd-name" className="form-label">Assignment Name</label>
-        <input id="wd-name" className="form-control" value= {assignment?.title} />
+        <input name="title" id="wd-name" className="form-control" value= {assignment?.title} onChange={handleChange}/>
       </div>
 
-      <textarea id="wd-description" className="form-control" rows={10}>
-        {assignment?.description}
-      </textarea>
+      <textarea name="description" id="wd-description" className="form-control" rows={10} value={assignment?.description} onChange={handleChange}/>
+      
 
       <div className="row mt-3">
         <div className="col-4 text-end">
           <label htmlFor="wd-points">Points</label>
         </div>
         <div className="col-8">
-         <input id="wd-points" className="form-control" value={assignment?.points} />
+         <input name="points" id="wd-points" className="form-control" value={assignment?.points} onChange={handleChange}/>
         </div>
       </div>
 
@@ -104,16 +172,16 @@ export default function AssignmentEditor() {
               </div>
               <div className="mb-3">
               <label htmlFor="wd-due-date">Due</label>
-              <input type="date" id="wd-due-date" value={assignment?.dueDate} className="form-control"/>
+              <input name="dueDate" type="date" id="wd-due-date" value={assignment?.dueDate} className="form-control" onChange={handleChange}/>
               </div>
               <div className="row mb-3">
                 <div className="col-6">
                   <label htmlFor="">Available from</label>
-                  <input type="date" id="wd-available-from" className="form-control" value={assignment?.availableDate} />
+                  <input name="availableDate" type="date" id="wd-available-from" className="form-control" value={assignment?.availableDate} onChange={handleChange}/>
                 </div>
                 <div className="col-6">
                   <label htmlFor="">Until</label>
-                  <input type="date" id="wd-available-until"className="form-control" value={assignment?.until} />
+                  <input name="until" type="date" id="wd-available-until"className="form-control" value={assignment?.until} onChange={handleChange}/>
                 </div>
               </div>
               
@@ -124,12 +192,14 @@ export default function AssignmentEditor() {
       </div>
 
       <hr />
-      <button type="button" className="btn btn-lg btn-danger me-1 float-end">Save</button>
-      <button type="button" className="btn btn-lg btn-secondary me-1 float-end">Cancel</button>
-
+      <div>
+      <button type="button" onClick={handleSave} className="btn btn-lg btn-danger me-1 float-end">Save</button>
+      <button type="button" onClick={() => navigate(`/Kambaz/Courses/${cid}/Assignments`)}className="btn btn-lg btn-secondary me-1 float-end">Cancel</button>
+      </div>
 
 
     </div>
       
   );
 }
+
