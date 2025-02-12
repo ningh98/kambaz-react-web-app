@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import * as db from "./Database";
 import { useState } from "react";
 import { enrollCourse, unenrollCourse } from "./Courses/Enrollments/reducer";
 import { useDispatch } from "react-redux";

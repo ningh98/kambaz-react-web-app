@@ -9,7 +9,7 @@ import ParentStateComponent from "./ParentStateComponent";
 import PassingDataOnEvent from "./PassingDataOnEvent";
 import PassingFunctions from "./PassingFunctions";
 import ReduxExamples from "./ReduxExamples";
-import Todolist from "./ReduxExamples/todos/Todolist";
+import Todolist from "./ReduxExamples/todos/TodoList";
 import StringStateVariables from "./StringStateVariables";
 
 
