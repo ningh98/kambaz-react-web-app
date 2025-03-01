@@ -10,7 +10,25 @@ export default function TOC() {
           id="wd-github"
           className="nav-link"
         >
-          My Github repository
+          My Github repository for client side
+        </a>
+      </li>
+      <li className="nav-item">
+        <a
+          href="https://github.com/ningh98/kambaz-node-server-app"
+          id="wd-github"
+          className="nav-link"
+        >
+          My Github repository for server side
+        </a>
+      </li>
+      <li className="nav-item">
+        <a
+          href="https://kambaz-node-server-app.onrender.com/"
+          id="wd-github"
+          className="nav-link"
+        >
+          Server on Render
         </a>
       </li>
       <li className="nav-item">
@@ -48,6 +66,14 @@ export default function TOC() {
           className={`nav-link ${pathname.includes("Lab4") ? "active" : ""}`}
         >
           Lab 4
+        </Link>
+      </li>
+      <li className="nav-item">
+        <Link
+          to="/Labs/Lab5"
+          className={`nav-link ${pathname.includes("Lab5") ? "active" : ""}`}
+        >
+          Lab 5
         </Link>
       </li>
       <li className="nav-item">

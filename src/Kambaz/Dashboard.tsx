@@ -1,37 +1,62 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useState } from "react";
 import { enrollCourse, unenrollCourse } from "./Courses/Enrollments/reducer";
 import { useDispatch } from "react-redux";
+import * as userClient from "./Account/client";
+
+
 export default function Dashboard( {
-  courses, course, setCourse, addNewCourse,
-  deleteCourse, updateCourse }: {
-  courses: any[]; course: any; setCourse: (course: any) => void;
+  courses, allCourses, course, setCourse, addNewCourse,
+  deleteCourse, updateCourse, displayAllCourses, fetchCourses }: {
+  courses: any[]; allCourses: any[]; course: any; setCourse: (course: any) => void;
   addNewCourse: () => void; deleteCourse: (course: any) => void;
-  updateCourse: () => void; })
+  updateCourse: () => void; displayAllCourses: () => void; fetchCourses: () => void;
+  })
  {
 
   const { currentUser } = useSelector((state: any) => state.accountReducer);
-  const enrollments = useSelector((state: any) => state.enrollmentsReducer.enrollments);
+  const { enrollments } = useSelector((state: any) => state.enrollmentsReducer);
   const [showAllCourse, setShowAllCourse] = useState(false);
   const dispatch = useDispatch();
-  const isEnrolled = (courseId: string) => {
-    return enrollments.some(
-      (enr: any) => enr.user === currentUser?._id && enr.course === courseId
-    );
+  
+  
+
+ 
+  const toggleEnrollmentView = async() => {
+    setShowAllCourse(!showAllCourse);
+    // console.log("currentUser._id = ", currentUser._id);
+    // console.log("enrollments = ", enrollments);
+    if (!showAllCourse) {
+      await displayAllCourses();
+    } else {
+      await fetchCourses()
+    }
   };
  
-  const toggleEnrollmentView = () => setShowAllCourse(!showAllCourse);
-  const displayCourses = showAllCourse ? courses : courses.filter((c) => isEnrolled(c._id));
+  const displayCourses = showAllCourse ? allCourses : courses;
+
   
-  const handleEnroll = (course: string) => {
-    dispatch(enrollCourse({ user: currentUser._id, course }));
+  
+  const isEnrolled = ( courseId: string) => {
+    return enrollments.some((e: any) => e.user === currentUser._id && e.course === courseId);
   };
 
-  const handleUnenroll = (course: string) => {
-    dispatch(unenrollCourse({ user: currentUser._id, course }));
+  const handleEnrollCourse = async(course: string) => {
+    const enrolledIn = await userClient.enrollUserInCourse(course);
+    dispatch(enrollCourse(enrolledIn));
+    // console.log(enrolledIn)
+    // console.log("enrollments = ", enrollments);
+    await fetchCourses();
+  }
+
+  const handleUnenroll = async (course: string) => {
+    const unEnrolled = await userClient.unenrollUserInCourse(course);
+    dispatch(unenrollCourse(unEnrolled));
+    // console.log(unEnrolled)
+    // console.log("enrollments = ", enrollments);
+    await fetchCourses();
   };
 
   return (
@@ -59,7 +84,15 @@ export default function Dashboard( {
         <hr />
       </div>
       
-      <h2 id="wd-dashboard-published">Published Courses ({courses.length})</h2> <hr />
+      <h2 id="wd-dashboard-published">
+        {
+         showAllCourse 
+         ?
+        `Published Courses (${allCourses.length})`
+        :
+        `Enrolled Courses (${courses.length})`
+        }
+        </h2> <hr />
       <div id="wd-dashboard-courses" className="row">
         <div className="row row-cols-1 row-cols-md-5 g-4">
           {        
@@ -70,14 +103,14 @@ export default function Dashboard( {
             <div className="card rounded-3 overflow-hidden">
               <Link
                 to={`/Kambaz/Courses/${course._id}/Home`}
-                className="wd-dashboard-course-link text-decoration-none text-dark" 
+                className="wd-dashboard-course-link text-decoration-none text-dark"
                 onClick={(e) => {
                   if (!isEnrolled(course._id)) {
                     e.preventDefault();
                     
                     alert("You must enroll before accessing this course.");
                   }
-                }}
+                }} 
               >
                 <img src="/images/reactjs.webp" width="100%" height={160} />
                 <div className="card-body">
@@ -88,29 +121,31 @@ export default function Dashboard( {
                     {course.description}
                   </p>
                   <button className="btn btn-primary"> Go </button>
-                  {currentUser?.role === "STUDENT" && showAllCourse && (
-                    isEnrolled(course._id) ? (
-                      <button className="btn btn-danger float-end" onClick={(e) => {
-                        e.preventDefault();
-                        handleUnenroll(course._id);
-                      }}>
-                        Unenroll
-                      </button>
-                    ) : (
-                      <button className="btn btn-success float-end" onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        handleEnroll(course._id);
-                      }}>
-                        Enroll
-                      </button>
-                    )
-                  )}
-                  {currentUser?.role === "STUDENT" && !showAllCourse && <button className="btn btn-danger float-end" 
+                  {
+                   !showAllCourse
+                   ?(
+                    currentUser?.role === "STUDENT" && <button className="btn btn-danger float-end" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleUnenroll(course._id);
+                    }}> UnEnroll </button>
+                   ) : (currentUser?.role === "STUDENT" && 
+                    isEnrolled(course._id) ? 
+                    (<button className="btn btn-danger float-end" 
                       onClick={(e) => {
                         e.preventDefault();
                         handleUnenroll(course._id);
-                      }}> Unenroll </button>}
+                      }}> UnEnroll </button>) 
+                    : (<button className="btn btn-success float-end" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleEnrollCourse(course._id);
+                      }}> Enroll </button>))
+                    
+                   
+                  }
+
                   <button onClick={(event) => {
                             event.preventDefault();
                             deleteCourse(course._id);

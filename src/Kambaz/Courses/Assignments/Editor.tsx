@@ -4,7 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addAssignment, updateAssignment } from "./reducer";
 import { useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+import * as courseClient from "../client";
+
+
 
 export default function AssignmentEditor() {
   const { cid, aid } = useParams();
@@ -23,6 +25,20 @@ export default function AssignmentEditor() {
     until: "",
     course: cid, 
   });
+
+  const addNewAssignment = async () => {
+    if (!cid) return;
+    const newAssignment = { ...assignment }
+    const createdAssignment = await courseClient.createAssignmentForCourse(cid, newAssignment);
+    dispatch(addAssignment(createdAssignment));
+
+  }
+  const updateAssignmentOnServer = async (assignment: any) => {
+    const updatedAssignment = await courseClient.updateAssignment(assignment);
+    dispatch(updateAssignment(updatedAssignment));
+  }
+
+
 
   const validate = () => {
 
@@ -58,16 +74,15 @@ export default function AssignmentEditor() {
     setAssignment({ ...assignment, [e.target.name]: e.target.value})
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
 
     if (isNewAssignment) {
       // Create a new assignment
-      const newAssignment = { ...assignment, _id: uuidv4() };
-      dispatch(addAssignment(newAssignment));
-      console.log(newAssignment);
+      await addNewAssignment();
+      
     } else {
-      dispatch(updateAssignment(assignment));
+      await updateAssignmentOnServer(assignment);
     }
     
 

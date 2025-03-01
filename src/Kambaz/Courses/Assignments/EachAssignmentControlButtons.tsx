@@ -5,9 +5,11 @@ import { FaTrash } from "react-icons/fa";
 import DeleteModal from "./DeleteModal";
 import { useDispatch } from "react-redux";
 import { deleteAssignment } from "./reducer";
+import * as assignmentClient from "../client"
 export default function EachAssignmentControlButtons({assignment} : {assignment: any}) {
   const dispatch = useDispatch();
-  const handleDelete = () => {
+  const handleDelete = async (assignmentId: string) => {
+    await assignmentClient.deleteAssignment(assignmentId)
     dispatch(deleteAssignment(assignment._id));
   };
   return (

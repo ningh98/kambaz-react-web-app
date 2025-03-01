@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BsGripVertical } from "react-icons/bs";
 import { CiSearch } from "react-icons/ci";
@@ -7,7 +8,10 @@ import { useParams } from "react-router";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import EachAssignmentControlButtons from "./EachAssignmentControlButtons";
 import AssignmentsControls from "./AssignmentsControls";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { setAssignments } from "./reducer";
+import { useEffect } from "react";
+import * as courseClient from "../client";
 
 
 // Helper function to format the date
@@ -28,6 +32,14 @@ function formatDate(dateString: string) {
 
 export default function Assignments() {
   const { cid } = useParams();
+  const dispatch = useDispatch();
+  const fetchAssignments = async () => {
+    const assignments = await courseClient.findAssignmentsForCourse(cid as string);
+    dispatch(setAssignments(assignments));
+  }
+  useEffect(() => {
+    fetchAssignments();
+  }, []);
   const { assignments } = useSelector((state: any) => state.assignmentsReducer);
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   
