@@ -30,6 +30,8 @@ body * {
 .list-group-item {
   --bs-list-group-border-color: gray;
 }
+
+
 .wd-lesson {
   border-left: 3px solid green !important;
 }
@@ -57,3 +59,4 @@ body * {
 .wd-assignment{
   border-left: 3px solid green;
 }
+
