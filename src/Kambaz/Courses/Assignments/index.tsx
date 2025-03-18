@@ -51,7 +51,8 @@ export default function Assignments() {
           <input placeholder="Search..." id="wd-search-assignment" style={{ height: "calc(2.375rem + 2px)" }}/>
         </div>
         
-        {currentUser?.role === "FACULTY" && <AssignmentsControls />}
+        {currentUser?.role === "FACULTY" && <AssignmentsControls />} 
+        {currentUser?.role === "ADMIN" && <AssignmentsControls />} 
       </div>
 
       <br />

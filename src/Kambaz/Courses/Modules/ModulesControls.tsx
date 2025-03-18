@@ -12,7 +12,7 @@ export default function ModulesControls(
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   return (
     <div id="wd-modules-controls" className="text-nowrap">
-      <div className={currentUser?.role === "FACULTY" ? "" : "d-none"}>
+      <div className={(currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN") ? "" : "d-none"}>
       <button id="wd-add-module-btn" className="btn btn-lg btn-danger me-1 float-end"
         data-bs-toggle="modal" data-bs-target="#wd-add-module-dialog" >
         <FaPlus className="position-relative me-2" style={{ bottom: "1px" }} />

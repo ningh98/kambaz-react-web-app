@@ -70,10 +70,11 @@ export default function Modules() {
                }}
                defaultValue={module.name}/>
       )}
-            {currentUser?.role === "FACULTY" && <ModuleControlButtons 
+            {(currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN") && <ModuleControlButtons 
               moduleId={module._id}
               deleteModule={(moduleId) => removeModule(moduleId)}
               editModule={(moduleId) => dispatch(editModule(moduleId))}/>}
+  
           </div>
           {module.lessons && (
           <ul className="wd-lessons list-group rounded-0">

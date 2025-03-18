@@ -187,16 +187,16 @@ export default function AssignmentEditor() {
               </div>
               <div className="mb-3">
               <label htmlFor="wd-due-date">Due</label>
-              <input name="dueDate" type="date" id="wd-due-date" value={assignment?.dueDate} className="form-control" onChange={handleChange}/>
+              <input name="dueDate" type="date" id="wd-due-date" value={assignment?.dueDate.substring(0, 10) || ""} className="form-control" onChange={handleChange}/>
               </div>
               <div className="row mb-3">
                 <div className="col-6">
                   <label htmlFor="">Available from</label>
-                  <input name="availableDate" type="date" id="wd-available-from" className="form-control" value={assignment?.availableDate} onChange={handleChange}/>
+                  <input name="availableDate" type="date" id="wd-available-from" className="form-control" value={assignment?.availableDate.substring(0, 10) || ""} onChange={handleChange}/>
                 </div>
                 <div className="col-6">
                   <label htmlFor="">Until</label>
-                  <input name="until" type="date" id="wd-available-until"className="form-control" value={assignment?.until} onChange={handleChange}/>
+                  <input name="until" type="date" id="wd-available-until"className="form-control" value={assignment?.until.substring(0, 10) || ""} onChange={handleChange}/>
                 </div>
               </div>
               
