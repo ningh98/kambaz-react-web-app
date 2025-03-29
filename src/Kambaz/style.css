@@ -18,6 +18,7 @@ body * {
   border-left: 3px solid black !important;
 }
 
+
 .btn-secondary {
   --bs-btn-color: #000 !important;
   --bs-btn-bg: #c7cdd1 !important;
@@ -36,7 +37,7 @@ body * {
   border-left: 3px solid green !important;
 }
 
-#input-container {
+.input-container {
   position: relative;
   
 }
@@ -47,6 +48,9 @@ body * {
 }
 #wd-search-assignment{
    margin:0; padding-left: 25px;
+}
+#wd-search-quiz{
+  margin:0; padding-left: 25px;
 }
 
 #percentage-capule {
@@ -59,4 +63,5 @@ body * {
 .wd-assignment{
   border-left: 3px solid green;
 }
+
 

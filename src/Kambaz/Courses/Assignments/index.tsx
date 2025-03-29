@@ -45,7 +45,7 @@ export default function Assignments() {
   
   return (
     <div id="wd-assignments">
-      <div id="input-container" className="d-flex justify-content-between align-items-center mt-2">
+      <div className="d-flex justify-content-between align-items-center mt-2">
         <div className="d-flex align-items-center position-relative">
           <CiSearch id="input-img" className="me-2 mb-1  position-absolute"/>
           <input placeholder="Search..." id="wd-search-assignment" style={{ height: "calc(2.375rem + 2px)" }}/>
