@@ -63,10 +63,10 @@ export default function QuizEditor() {
         <div id="wd-quiz-tabs">
             <ul className="nav nav-tabs">
                 <li className="nav-item">
-                    <Link to="" className={`nav-link ${pathname.includes("Question") ? "text-danger" : "active"}`}>Detail</Link>
+                    <Link to="" className={`nav-link ${pathname.includes("Questions") ? "text-danger" : "active"}`}>Detail</Link>
                 </li>
                 <li className="nav-item">
-                    <Link to="Questions" className={`nav-link  ${pathname.includes("Question") ? "active" : "text-danger"}`}>Question</Link>
+                    <Link to="Questions" className={`nav-link  ${pathname.includes("Questions") ? "active" : "text-danger"}`}>Questions</Link>
                 </li>
             </ul>
         </div>

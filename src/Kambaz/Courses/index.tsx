@@ -12,6 +12,7 @@ import * as client from "./client"
 import Quizzes from "./Quizzes";
 import QuizEditor from "./Quizzes/Editor";
 import Questions from "./Quizzes/Questions";
+import QuizPreview from "./Quizzes/QuizPreview";
 
 export default function Courses({ courses }: { courses: any[]; }) {
   const { cid } = useParams();
@@ -50,6 +51,7 @@ export default function Courses({ courses }: { courses: any[]; }) {
             <Route path="Quizzes/:qid" element={<QuizEditor />}>
               <Route path="Questions" element={<Questions />}/>
             </Route>
+            <Route path="Quizzes/123/preview" element={<QuizPreview />} />
             <Route path="People" element={<PeopleTable users={users}/>} />
           </Routes>
         </div>
