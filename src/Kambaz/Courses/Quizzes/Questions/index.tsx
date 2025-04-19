@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState } from 'react'
-import QuestionEditor from './questionEditor'
+import QuestionEditor from './QuestionEditor'
 
 export default function Questions() {
   const [question, setQuestion] = useState({})

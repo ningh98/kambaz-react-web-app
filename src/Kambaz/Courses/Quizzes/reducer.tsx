@@ -36,7 +36,7 @@ const quizzesSlice = createSlice({
                 lockQuestionAfterAnswer: quiz.lockQuestionAfterAnswer,
                 dueDate: quiz.dueDate,
                 availableDate: quiz.availableDate,
-                until: quiz.until,
+                untilDate: quiz.until,
             };
             state.quizzes = [...state.quizzes, newQuiz] as any;
         },

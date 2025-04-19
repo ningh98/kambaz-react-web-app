@@ -1,57 +1,110 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router";
-
+import * as courseClient from "../client";
 import { useLocation } from "react-router";
 import { Link, Outlet } from "react-router-dom";
-
+import { useDispatch, useSelector } from "react-redux";
+import { addQuiz, updateQuiz } from "./reducer";
 
 
 export default function QuizEditor() {
-    const { cid } = useParams();
-    const { pathname } = useLocation();
+    const { cid,qid } = useParams();
+    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [quiz, setQuiz] = useState({
+    const { quizzes } = useSelector((state: any) => state.quizzesReducer);
+    const { pathname } = useLocation();
+    const isNewQuiz = !qid || qid === "new"
+    const existingQuiz = quizzes.find((quiz: { _id: string | undefined; }) => quiz._id === qid)
+    
+    const [quiz, setQuiz] = useState(existingQuiz ||{
         _id: "",
         title: "New Quiz",
         instructions: "New Quiz Instructions",
-        quizType: "gradedQuiz",
+        quizType: "Graded Quiz",
         points: 100,
-        assignmentsGroup: "quizzes",
+        assignmentGroup: "Quizzes",
         shuffleAnswers: true,
         timeLimit: 20,
-        multiplyAttempts: false,
-        numberOfAttempts: 1,
+        multipleAttempts: false,
+        attemptsAllowed: 1,
         showCorrectAnswers: false,
         accessCode: "",
         oneQuestionAtATime: true,
         webcamRequired: false,
-        lockQuestionAfterAnswer: false,
+        lockQuestionsAfterAnswering: false,
         dueDate: "",
         availableDate: "",
-        until: "",
+        untilDate: "",
         course: cid,
     })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setQuiz({ ...quiz, [e.target.name]: e.target.value})
       }
+    const addNewQuiz = async () => {
+        if (!cid) return;
+        const newQuiz = { ...quiz }
+        console.log("creating quiz for course", cid, quiz);
+        const createdQuiz = await courseClient.createQuizForCourse(cid, newQuiz);
+        dispatch(addQuiz(createdQuiz));
     
+
+    }
+
+    const updateQuizOnServer = async (quiz: any) => {
+        const updatedQuiz = await courseClient.updateQuiz(quiz);
+        dispatch(updateQuiz(updatedQuiz));
+    }
+      const validate = () => {
+
+        if (!quiz.title.trim()) {
+          alert("Please enter a title for the quiz.");
+          return false;
+        }
+        if (!quiz.instructions.trim()) {
+          alert("Please enter the instructions for the quiz.");
+          return false;
+        }
+        if (!quiz.points) {
+          alert("Please enter the points for the quiz.");
+          return false;
+        }
+        if (!quiz.dueDate) {
+          alert("Please select a due date.");
+          return false;
+        }
+        if (!quiz.availableDate) {
+          alert("Please select a available from date.");
+          return false;
+        }
+        if (!quiz.untilDate) {
+          alert("Please select a available until date.");
+          return false;
+        }
+    
+        return true;
+      };
       const handleSave = async () => {
-        // if (!validate()) return;
+        if (!validate()) return;
     
-        // if (isNewAssignment) {
-        //   // Create a new assignment
-        //   await addNewAssignment();
+        if (isNewQuiz) {
+          // Create a new quiz
+          await addNewQuiz();
           
-        // } else {
-        //   await updateAssignmentOnServer(assignment);
-        // }
+        } else {
+          await updateQuizOnServer(quiz);
+        }
         
     
         navigate(`/Kambaz/Courses/${cid}/Quizzes`);
       };
+    
+    
+    
+      
 
   return (
     <div id="wd-quizzes-editor">
@@ -88,11 +141,15 @@ export default function QuizEditor() {
                 <label htmlFor="wd-quiz-type" className="mt-2">Quiz Type</label>
             </div>
             <div className="col-8">
-                <select className="form-select" id="wd-quiz-type">
-                <option value="gradedQuiz">Graded Quiz</option>
-                <option value="practiceQuizzes"> Practice Quiz</option>
-                <option value="gradedSurvey">Graded Survey</option>
-                <option value="ungradedSurvey">Ungraded Survey</option>
+                <select 
+                name="quizType"
+                className="form-select" id="wd-quiz-type"
+                value={quiz.quizType}
+                onChange={handleChange}>
+                <option value="Graded Quiz">Graded Quiz</option>
+                <option value="Practice Quizzes"> Practice Quiz</option>
+                <option value="GradedS urvey">Graded Survey</option>
+                <option value="Ungraded Survey">Ungraded Survey</option>
             </select>
             </div>
         </div>
@@ -112,11 +169,15 @@ export default function QuizEditor() {
                 <label htmlFor="wd-assign-group">Assignment Group</label>
             </div>
             <div className="col-8">
-                <select className="form-select" id="wd-assign-group">
-                    <option value="quizzes">QUIZZES</option>
-                    <option value="assignments">ASSIGNMENTS</option>
-                    <option value="exams">EXAMS</option>
-                    <option value="project">PROJECT</option>
+                <select 
+                name="assignmentGroup"
+                value={quiz.assignmentGroup}
+                onChange={handleChange}
+                className="form-select" id="wd-assign-group">
+                    <option value="Quizzes">QUIZZES</option>
+                    <option value="Assignments">ASSIGNMENTS</option>
+                    <option value="Exams">EXAMS</option>
+                    <option value="Project">PROJECT</option>
                 </select>
             </div>
         </div>
@@ -126,7 +187,9 @@ export default function QuizEditor() {
                 <p style={{ fontWeight: "bold" }}>Options:</p>
             </div>
             <div className="col-5 offset-4 mt-2">
-              <input type="checkbox" id="wd-shuffle-answers" />
+              <input name="shuffleAnswers" type="checkbox" id="wd-shuffle-answers" 
+              checked={quiz.shuffleAnswers}
+              onChange={e => setQuiz({ ...quiz, shuffleAnswers: e.target.checked })} />
               <label htmlFor="wd-shuffle-answers" className="ms-2">Shuffle Anwswers</label>
             </div>
             <div className="col-5 offset-4 mt-2">
@@ -136,11 +199,16 @@ export default function QuizEditor() {
               <span className="ms-2">Minutes</span>
             </div>
             <div className="col-5 offset-4 mt-3 border border-2">
-              <input type="checkbox" id="wd-multiple-attempts" />
+              <input name="multipleAttempts" checked={quiz.multipleAttempts}
+              onChange={e => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
+              type="checkbox" id="wd-multiple-attempts" />
               <label htmlFor="wd-multiple-attempts" className="ms-2">Allow Multiple Attempts</label>
             </div>
             <div className="col-5 offset-4 mt-3">
-              <input type="checkbox" id="wd-show-correct-answers" />
+              <input type="checkbox" id="wd-show-correct-answers"
+              name="showCorrectAnswers"
+              checked={quiz.showCorrectAnswers}
+              onChange={e => setQuiz({ ...quiz, showCorrectAnswers: e.target.checked })} />
               <label htmlFor="wd-show-correct-answers" className="ms-2">Show Correct Answers</label>
             </div>
             <div className="col-5 offset-4 mt-2">
@@ -148,15 +216,25 @@ export default function QuizEditor() {
               <input type="form-control" id="wd-access-code" />
             </div>
             <div className="col-5 offset-4 mt-2">
-              <input type="checkbox" id="wd-one-question-at-a-time" />
+              <input type="checkbox" id="wd-one-question-at-a-time"
+              name="oneQuestionAtATime"
+              checked={quiz.oneQuestionAtATime}
+              onChange={e => setQuiz({ ...quiz, oneQuestionAtATime: e.target.checked })}
+               />
               <label htmlFor="wd-one-question-at-a-time" className="ms-2">One Question at a Time</label>
             </div>
             <div className="col-5 offset-4 mt-2">
-              <input type="checkbox" id="wd-webcam-required" />
+              <input type="checkbox" id="wd-webcam-required"
+              name="webcamRequired"
+              checked={quiz.webcamRequired}
+              onChange={e => setQuiz({ ...quiz, webcamRequired: e.target.checked })} />
               <label htmlFor="wd-webcam-required" className="ms-2">Webcam Required</label>
             </div>
             <div className="col-5 offset-4 mt-2">
-              <input type="checkbox" id="wd-lock-questions-after-answering" />
+              <input type="checkbox" id="wd-lock-questions-after-answering"
+              name="lockQuestionsAfterAnswering"
+              checked={quiz.lockQuestionsAfterAnswering}
+              onChange={e => setQuiz({ ...quiz, lockQuestionsAfterAnswering: e.target.checked })} />
               <label htmlFor="wd-lock-questions-after-answering" className="ms-2">Lock Questions After Answering</label>
             </div>
 
@@ -183,7 +261,7 @@ export default function QuizEditor() {
                     </div>
                     <div className="col-6">
                     <label htmlFor="">Until</label>
-                    <input name="until" type="date" id="wd-available-until"className="form-control" value={quiz?.until.substring(0, 10) || ""} onChange={handleChange}/>
+                    <input name="untilDate" type="date" id="wd-available-until"className="form-control" value={quiz?.untilDate.substring(0, 10) || ""} onChange={handleChange}/>
                     </div>
                 </div>
                 

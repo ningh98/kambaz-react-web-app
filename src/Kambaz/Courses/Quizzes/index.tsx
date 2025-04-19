@@ -2,22 +2,66 @@
 import { CiSearch } from "react-icons/ci";
 import QuizzesControls from "./QuizzesControls";
 import { useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { FaCaretDown } from "react-icons/fa";
+import { useEffect } from "react";
+import { IoRocketOutline } from "react-icons/io5";
+import * as coursesClient from "../client";
+import { setQuizzes } from "./reducer";
+import EachQuizControlButtons from "./EachQuizControlButtons";
 
 
 export default function Quizzes() {
 
     // implement fetchQuizzes from server side
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    
     const { cid } = useParams();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const dispatch = useDispatch();
     const fetchQuizzes = async () => {
+      console.log("➡️  about to fetch quizzes for course", cid);
+      try {
+        const quizzes = await coursesClient.findQuizzesForCourse(cid as string);
+        console.log("✅ fetch succeeded, quizzes:", quizzes);
+        dispatch(setQuizzes(quizzes));
+      } catch (err) {
+        console.error("❌ fetchQuizzes error:", err);
+      }
+    }
+    useEffect(() => {
+        fetchQuizzes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    function formatDate(dateString: string) {
+      const date = new Date(dateString); // Parse the date string into a Date object
+      const options: Intl.DateTimeFormatOptions = {
+        month: "short", // Short month (e.g., "May")
+        day: "numeric", // Day of the month (e.g., "6")
+        hour: "numeric", // Hour (e.g., "12")
+        minute: "numeric", // Minute (e.g., "00")
+        hour12: true, // Use 12-hour clock (e.g., "am" or "pm")
+      };
+    
+      return new Intl.DateTimeFormat("en-US", options).format(date); // Format the date
+    }
+    
+
+    const quizAvailability = (quiz: any) => {
+      const now = new Date();
+      const start = new Date(quiz.availableDate);
+      const end = new Date(quiz.until);
+      if (now < start) {
+        return `Not Available until ${start.toLocaleString()}`;
+      } else if (now > end) {
+        return "Closed";
+      } else {
+        return "Available";
+      }
 
     }
-
-    
     const { currentUser } = useSelector((state: any) => state.accountReducer);
+    const { quizzes } = useSelector((state: any) => state.quizzesReducer);
+    
   return (
     <div id="wd-quizzes">
       <div className="d-flex justify-content-between align-items-center mt-2">
@@ -38,7 +82,27 @@ export default function Quizzes() {
                 Quizzes
             </div>
             <ul className="wd-quizzes list-group rounded-0">
-              
+              {quizzes
+                .map((quiz: any)=>(
+                  <li key={quiz._id} className="wd-quiz list-group-item p-3 mb-5 fs-5 border-gray d-flex align-items-center">
+                    {/* <div className="me-3 d-flex align-items-center"> */}
+                        <IoRocketOutline className="me-2 fs-3" />
+                    {/* </div> */}
+                    <div className="flex-grow-1">
+                      <a
+                        href={`#/Kambaz/Courses/${cid}/Quizzes/${quiz._id}`}
+                        className="wd-quiz-link"
+                        >
+                        {quiz.title}
+                      </a>
+                      <br />
+                      {quizAvailability(quiz)} |{" "} <b>Due</b> {formatDate(quiz?.dueDate)} | {quiz.points} pts | {quiz.numberOfQuestions} Questions
+                    </div>
+                    <div className="d-flex align-items-center">
+                      {currentUser?.role === "FACULTY" && <EachQuizControlButtons quiz={quiz}/>}
+                    </div>
+                  </li>
+                ))}
             </ul>
             
 

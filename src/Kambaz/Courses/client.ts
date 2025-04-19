@@ -5,6 +5,7 @@ const REMOTE_SERVER = import.meta.env.VITE_REMOTE_SERVER;
 const COURSES_API = `${REMOTE_SERVER}/api/courses`;
 const MODULES_API = `${REMOTE_SERVER}/api/modules`;
 const ASSIGNMENTS_API = `${REMOTE_SERVER}/api/assignments`;
+const QUIZZES_API = `${REMOTE_SERVER}/api/quizzes`;
 
 export const fetchAllCourses = async () => {
     const { data } = await axiosWithCredentials.get(COURSES_API);
@@ -72,5 +73,25 @@ export const deleteAssignment = async (assignmentId: string) => {
 
 export const findUsersForCourse = async (courseId: string) => {
     const response = await axios.get(`${COURSES_API}/${courseId}/users`);
+    return response.data;
+}
+
+export const findQuizzesForCourse = async (courseId: string) => {
+    const response = await axiosWithCredentials.get(`${COURSES_API}/${courseId}/quizzes`);
+    return response.data;
+}
+
+export const createQuizForCourse = async (courseId: string, quiz: any) => {
+    const response = await axiosWithCredentials.post(`${COURSES_API}/${courseId}/quizzes`, quiz);
+    return response.data;
+}
+
+export const updateQuiz = async (quiz: any) => {
+    const response = await axiosWithCredentials.put(`${QUIZZES_API}/${quiz._id}`, quiz);
+    return response.data;
+}
+
+export const deleteQuiz = async (quizId: string) => {
+    const response = await axiosWithCredentials.delete(`${QUIZZES_API}/${quizId}`);
     return response.data;
 }
