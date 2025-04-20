@@ -4,7 +4,7 @@ import QuizzesControls from "./QuizzesControls";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { FaCaretDown } from "react-icons/fa";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { IoRocketOutline } from "react-icons/io5";
 import * as coursesClient from "../client";
 import { setQuizzes } from "./reducer";
@@ -14,13 +14,13 @@ import EachQuizControlButtons from "./EachQuizControlButtons";
 export default function Quizzes() {
 
     // implement fetchQuizzes from server side
-    
+    const [ query, setQuery ] = useState("");
     const { cid } = useParams();
     const dispatch = useDispatch();
-    const fetchQuizzes = async () => {
+    const fetchQuizzes = async (q = "") => {
       console.log("➡️  about to fetch quizzes for course", cid);
       try {
-        const quizzes = await coursesClient.findQuizzesForCourse(cid as string);
+        const quizzes = await coursesClient.findQuizzesForCourse(cid as string, q);
         console.log("✅ fetch succeeded, quizzes:", quizzes);
         dispatch(setQuizzes(quizzes));
       } catch (err) {
@@ -71,14 +71,21 @@ export default function Quizzes() {
       // 如果是学生，只显示已发布的测验
       return quiz.published === true;
     });
+
+    const handleSearch = (e: React.FormEvent ) => {
+      e.preventDefault();
+      fetchQuizzes(query.trim())
+    }
   
   return (
     <div id="wd-quizzes">
       <div className="d-flex justify-content-between align-items-center mt-2">
-        <div className="d-flex align-items-center position-relative">
+        <form onSubmit={handleSearch}className="d-flex align-items-center position-relative">
           <CiSearch id="input-img" className="me-2 mb-1  position-absolute"/>
-          <input placeholder="Search..." id="wd-search-quiz" style={{ height: "calc(2.375rem + 2px)" }}/>
-        </div>
+          <input placeholder="Search..." id="wd-search-quiz" className="form-control"style={{ height: "calc(2.375rem + 2px)" }}
+          value={query}
+          onChange={e => setQuery(e.target.value)}/>
+        </form>
             {currentUser?.role === "FACULTY" && <QuizzesControls />}
             {currentUser?.role === "ADMIN" && <QuizzesControls />} 
       </div>

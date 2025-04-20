@@ -370,7 +370,7 @@ export default function QuizEditor() {
                   Save & Publish
                 </button>
                 <button type="button" onClick={handleSave} className="btn btn-lg btn-danger me-1 float-end">Save</button>
-                <button type="button" onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}className="btn btn-lg btn-secondary me-1 float-end">Cancel</button>
+                <button type="button" onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}`)}className="btn btn-lg btn-secondary me-1 float-end">Cancel</button>
             </div>
 
        </div>

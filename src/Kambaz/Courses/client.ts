@@ -76,10 +76,13 @@ export const findUsersForCourse = async (courseId: string) => {
     return response.data;
 }
 
-export const findQuizzesForCourse = async (courseId: string) => {
-    const response = await axiosWithCredentials.get(`${COURSES_API}/${courseId}/quizzes`);
+export const findQuizzesForCourse = async (courseId: string, search ="") => {
+    const response = await axiosWithCredentials.get(`${COURSES_API}/${courseId}/quizzes`,
+        { params: search ? {search} : {}}
+    );
     return response.data;
 }
+
 
 export const createQuizForCourse = async (courseId: string, quiz: any) => {
     const response = await axiosWithCredentials.post(`${COURSES_API}/${courseId}/quizzes`, quiz);

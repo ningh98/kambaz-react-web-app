@@ -292,6 +292,7 @@ export default function Questions() {
         }
       }
     }
+    navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}`);
   };
 
   // 渲染问题类型
