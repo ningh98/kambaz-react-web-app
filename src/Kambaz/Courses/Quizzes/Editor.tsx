@@ -115,6 +115,28 @@ export default function QuizEditor() {
     
         navigate(`/Kambaz/Courses/${cid}/Quizzes`);
       };
+      
+      const handleSaveAndPublish = async () => {
+        // 先设置为已发布
+        setQuiz(prevQuiz => ({ ...prevQuiz, published: true }));
+        
+        if (!validate()) return;
+        
+        if (isNewQuiz) {
+          // 创建新测验时直接使用带有 published: true 的对象
+          const newQuiz = { ...quiz, published: true };
+          console.log("creating published quiz for course", cid, newQuiz);
+          const createdQuiz = await courseClient.createQuizForCourse(cid, newQuiz);
+          dispatch(addQuiz(createdQuiz));
+        } else {
+          // 更新现有测验时直接使用带有 published: true 的对象
+          const updatedQuiz = { ...quiz, published: true };
+          const result = await courseClient.updateQuiz(updatedQuiz);
+          dispatch(updateQuiz(result));
+        }
+        
+        navigate(`/Kambaz/Courses/${cid}/Quizzes`);
+      };
     
     
     
@@ -132,9 +154,11 @@ export default function QuizEditor() {
                 <li className="nav-item">
                     <Link to="" className={`nav-link ${pathname.includes("Questions") ? "text-danger" : "active"}`}>Detail</Link>
                 </li>
-                <li className="nav-item">
-                    <Link to="Questions" className={`nav-link  ${pathname.includes("Questions") ? "active" : "text-danger"}`}>Questions</Link>
-                </li>
+                {!isNewQuiz && (
+                    <li className="nav-item">
+                        <Link to="Questions" className={`nav-link  ${pathname.includes("Questions") ? "active" : "text-danger"}`}>Questions</Link>
+                    </li>
+                )}
             </ul>
         </div>
        <Outlet/>
@@ -224,6 +248,21 @@ export default function QuizEditor() {
           onChange={e => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
           type="checkbox" id="wd-multiple-attempts" />
           <label htmlFor="wd-multiple-attempts" className="ms-2">Allow Multiple Attempts</label>
+          {quiz.multipleAttempts && (
+            <div className="mt-2 mb-2">
+              <label htmlFor="wd-attempts-allowed" className="me-2">Allowed Attempts:</label>
+              <input 
+                type="number" 
+                id="wd-attempts-allowed"
+                name="attemptsAllowed"
+                min="1"
+                max="10"
+                value={quiz.attemptsAllowed}
+                className="w-25" 
+                onChange={e => setQuiz({ ...quiz, attemptsAllowed: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+          )}
         </div>
         <div className="col-5 offset-4 mt-3">
           <input type="checkbox" id="wd-show-correct-answers"
@@ -278,16 +317,41 @@ export default function QuizEditor() {
             </div>
             <div className="mb-3">
             <label htmlFor="wd-due-date">Due</label>
-            <input name="dueDate" type="date" id="wd-due-date" value={quiz?.dueDate.substring(0, 10) || ""} className="form-control" onChange={handleChange}/>
+            <input 
+              name="dueDate" 
+              type="date" 
+              id="wd-due-date" 
+              value={quiz?.dueDate.substring(0, 10) || ""} 
+              className="form-control" 
+              onChange={handleChange}
+              min={new Date().toISOString().split('T')[0]} 
+            />
             </div>
             <div className="row mb-3">
                 <div className="col-6">
                 <label htmlFor="">Available from</label>
-                <input name="availableDate" type="date" id="wd-available-from" className="form-control" value={quiz?.availableDate.substring(0, 10) || ""} onChange={handleChange}/>
+                <input 
+                  name="availableDate" 
+                  type="date" 
+                  id="wd-available-from" 
+                  className="form-control" 
+                  value={quiz?.availableDate.substring(0, 10) || ""} 
+                  onChange={handleChange}
+                  min={new Date().toISOString().split('T')[0]} 
+                  max={quiz?.untilDate?.substring(0, 10) || quiz?.dueDate?.substring(0, 10)} 
+                />
                 </div>
                 <div className="col-6">
                 <label htmlFor="">Until</label>
-                <input name="untilDate" type="date" id="wd-available-until"className="form-control" value={quiz?.untilDate.substring(0, 10) || ""} onChange={handleChange}/>
+                <input 
+                  name="untilDate" 
+                  type="date" 
+                  id="wd-available-until"
+                  className="form-control" 
+                  value={quiz?.untilDate.substring(0, 10) || ""} 
+                  onChange={handleChange}
+                  min={quiz?.availableDate?.substring(0, 10) || new Date().toISOString().split('T')[0]} 
+                />
                 </div>
             </div>
             
@@ -301,10 +365,7 @@ export default function QuizEditor() {
             <div>
                 <button 
                   type="button" 
-                  onClick={() => {
-                    setQuiz({ ...quiz, published: true });
-                    handleSave();
-                  }} 
+                  onClick={handleSaveAndPublish} 
                   className="btn btn-lg btn-success me-1 float-end">
                   Save & Publish
                 </button>

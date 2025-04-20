@@ -14,6 +14,24 @@ interface UserAnswers {
   };
 }
 
+// Quiz submission type definition
+interface QuizSubmission {
+  _id?: string;
+  quizId: string | undefined;
+  courseId: string | undefined;
+  studentId: string;
+  answers: UserAnswers;
+  score: {
+    earned: number;
+    total: number;
+    percentage: number;
+  };
+  startTime: string;
+  endTime: string;
+  timeSpent: number; // in seconds
+  attemptNumber?: number;
+}
+
 export default function QuizTake() {
   const { cid, qid } = useParams();
   const navigate = useNavigate();
@@ -21,7 +39,7 @@ export default function QuizTake() {
   const quiz = quizzes.find((q: any) => q._id === qid);
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   
-  const [currentStep, setCurrentStep] = useState<'taking' | 'results'>('taking');
+  const [currentStep, setCurrentStep] = useState<'taking' | 'results' | 'history' | 'unavailable'>('taking');
   const [userAnswers, setUserAnswers] = useState<UserAnswers>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState({ earned: 0, total: 0, percentage: 0 });
@@ -29,6 +47,14 @@ export default function QuizTake() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  
+  // New state variables for attempt tracking
+  const [previousAttempts, setPreviousAttempts] = useState<QuizSubmission[]>([]);
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  const [currentAttemptNumber, setCurrentAttemptNumber] = useState<number>(1);
+  const [attemptLimitReached, setAttemptLimitReached] = useState<boolean>(false);
+  const [isLoadingAttempts, setIsLoadingAttempts] = useState<boolean>(true);
+  const [selectedAttempt, setSelectedAttempt] = useState<QuizSubmission | null>(null);
 
   // Initialize user answers and timer
   useEffect(() => {
@@ -45,6 +71,97 @@ export default function QuizTake() {
       }
     }
   }, [quiz]);
+
+  // Fetch previous attempts and check if student can take the quiz
+  useEffect(() => {
+    const fetchPreviousAttempts = async () => {
+      if (!currentUser || !qid) return;
+      
+      setIsLoadingAttempts(true);
+      try {
+        console.log('Fetching attempts for quiz:', qid, 'and student:', currentUser._id);
+        const response = await axios.get(
+          `${import.meta.env.VITE_REMOTE_SERVER}/api/quizzes/${qid}/submissions/student/${currentUser._id}`
+        );
+        
+        console.log('Response from server:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Sort attempts by date (newest first)
+          const sortedAttempts = response.data.sort((a, b) => 
+            new Date(b.endTime).getTime() - new Date(a.endTime).getTime()
+          );
+          
+          console.log('Sorted attempts:', sortedAttempts);
+          setPreviousAttempts(sortedAttempts);
+          
+          // Check if quiz is available
+          const now = new Date();
+          const availableFrom = quiz?.availableDate ? new Date(quiz.availableDate) : null;
+          const availableUntil = quiz?.untilDate ? new Date(quiz.untilDate) : null;
+          
+          // If quiz is not available, disable new attempts
+          if ((availableFrom && now < availableFrom) || (availableUntil && now > availableUntil)) {
+            console.log('Quiz is not available at this time:', {
+              now,
+              availableFrom,
+              availableUntil
+            });
+            setAttemptLimitReached(true);
+            setCurrentStep('unavailable');
+            setIsLoadingAttempts(false);
+            return;
+          }
+          
+          // Check if student has reached the attempt limit
+          if (quiz?.multipleAttempts && quiz?.attemptsAllowed) {
+            const attemptsUsed = sortedAttempts.length;
+            const remaining = Number(quiz.attemptsAllowed) - attemptsUsed;
+            
+            console.log('Quiz settings:', {
+              multipleAttempts: quiz.multipleAttempts,
+              attemptsAllowed: quiz.attemptsAllowed,
+              attemptsUsed,
+              remaining
+            });
+            
+            setAttemptsRemaining(remaining);
+            setCurrentAttemptNumber(attemptsUsed + 1);
+            
+            if (remaining <= 0) {
+              console.log('Attempt limit reached, disabling new attempts');
+              setAttemptLimitReached(true);
+              // If attempts are exhausted, show the most recent attempt results
+              if (sortedAttempts.length > 0) {
+                setSelectedAttempt(sortedAttempts[0]);
+                setCurrentStep('history');
+              }
+            } else {
+              console.log('Attempts still available:', remaining);
+              setAttemptLimitReached(false);
+            }
+          } else if (!quiz?.multipleAttempts && sortedAttempts.length > 0) {
+            // If quiz doesn't allow multiple attempts and student has already taken it
+            console.log('Quiz does not allow multiple attempts and student has already taken it');
+            setAttemptLimitReached(true);
+            setSelectedAttempt(sortedAttempts[0]);
+            setCurrentStep('history');
+          } else {
+            console.log('Quiz does not allow multiple attempts or attemptsAllowed is not set:', {
+              multipleAttempts: quiz?.multipleAttempts,
+              attemptsAllowed: quiz?.attemptsAllowed
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching previous attempts:", error);
+      } finally {
+        setIsLoadingAttempts(false);
+      }
+    };
+    
+    fetchPreviousAttempts();
+  }, [currentUser, qid, quiz]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -188,7 +305,7 @@ export default function QuizTake() {
     
     try {
       // Save quiz submission to database
-      const quizSubmission = {
+      const quizSubmission: QuizSubmission = {
         quizId: qid,
         courseId: cid,
         studentId: currentUser._id,
@@ -200,16 +317,57 @@ export default function QuizTake() {
         },
         startTime: startTime.toISOString(),
         endTime: new Date().toISOString(),
-        timeSpent: Math.floor((new Date().getTime() - startTime.getTime()) / 1000) // in seconds
+        timeSpent: Math.floor((new Date().getTime() - startTime.getTime()) / 1000), // in seconds
+        attemptNumber: currentAttemptNumber
       };
       
-      await axios.post(`${process.env.REACT_APP_API_BASE}/api/quizzes/${qid}/submissions`, quizSubmission);
+      await axios.post(`${import.meta.env.VITE_REMOTE_SERVER}/api/quizzes/${qid}/submissions`, quizSubmission);
+      
+      // Refresh the previous attempts list
+      const response = await axios.get(
+        `${import.meta.env.VITE_REMOTE_SERVER}/api/quizzes/${qid}/submissions/student/${currentUser._id}`
+      );
+      
+      if (response.data && Array.isArray(response.data)) {
+        // Sort attempts by date (newest first)
+        const sortedAttempts = response.data.sort((a, b) => 
+          new Date(b.endTime).getTime() - new Date(a.endTime).getTime()
+        );
+        
+        setPreviousAttempts(sortedAttempts);
+        
+        // Update attempts remaining
+        if (quiz?.multipleAttempts && quiz?.attemptsAllowed) {
+          const attemptsUsed = sortedAttempts.length;
+          const remaining = quiz.attemptsAllowed - attemptsUsed;
+          
+          setAttemptsRemaining(remaining);
+          
+          if (remaining <= 0) {
+            setAttemptLimitReached(true);
+          }
+        }
+      }
       
       setQuizSubmitted(true);
       setCurrentStep('results');
     } catch (error) {
       console.error("Error submitting quiz:", error);
-      setSubmissionError("Failed to submit quiz. Please try again.");
+      if (error.response && error.response.status === 403) {
+        // 显示具体的错误消息，如"多次尝试不允许"或"已达到最大尝试次数"
+        setSubmissionError(error.response.data.message || "You have reached the maximum number of attempts for this quiz.");
+        
+        // 更新状态，禁用新的尝试
+        setAttemptLimitReached(true);
+        
+        // 如果有尝试历史，显示最近的尝试结果
+        if (previousAttempts.length > 0) {
+          setSelectedAttempt(previousAttempts[0]);
+          setCurrentStep('history');
+        }
+      } else {
+        setSubmissionError("Failed to submit quiz. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -455,6 +613,14 @@ export default function QuizTake() {
             <h4>{quiz.title}</h4>
             <p><strong>Started:</strong> {formatDate(startTime)}</p>
             <p><strong>Completed:</strong> {formatDate(new Date())}</p>
+            
+            {quiz.multipleAttempts && (
+              <>
+                <p><strong>Attempt:</strong> {currentAttemptNumber} of {quiz.attemptsAllowed}</p>
+                <p><strong>Attempts Remaining:</strong> {attemptsRemaining}</p>
+              </>
+            )}
+            
             <div className="score-summary text-center p-4">
               <h2>Your Score: {score.earned}/{score.total} ({score.percentage}%)</h2>
               <div className="progress">
@@ -485,6 +651,36 @@ export default function QuizTake() {
           >
             Review Answers
           </button>
+          
+          {quiz.multipleAttempts && attemptsRemaining && attemptsRemaining > 0 ? (
+            <button 
+              className="btn btn-warning"
+              onClick={() => {
+                // Reset for a new attempt
+                setQuizSubmitted(false);
+                setCurrentStep('taking');
+                setUserAnswers({});
+                setScore({ earned: 0, total: 0, percentage: 0 });
+                const newStartTime = new Date();
+                setStartTime(newStartTime);
+                if (quiz.timeLimit) {
+                  setTimeRemaining(quiz.timeLimit * 60);
+                }
+              }}
+            >
+              Take Quiz Again
+            </button>
+          ) : null}
+          
+          {previousAttempts.length > 0 && (
+            <button 
+              className="btn btn-info"
+              onClick={() => setCurrentStep('history')}
+            >
+              View Attempt History
+            </button>
+          )}
+          
           <button 
             className="btn btn-success"
             onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
@@ -496,9 +692,234 @@ export default function QuizTake() {
     );
   };
 
+  // Render quiz history page
+  const renderHistoryPage = () => {
+    if (isLoadingAttempts) {
+      return <div className="text-center p-5"><div className="spinner-border" role="status"></div></div>;
+    }
+    
+    if (previousAttempts.length === 0) {
+      return (
+        <div className="alert alert-info">
+          You have not attempted this quiz yet.
+        </div>
+      );
+    }
+    
+    return (
+      <div className="quiz-history-container">
+        <div className="card mb-4">
+          <div className="card-header bg-primary text-white">
+            <h3 className="mb-0">Your Quiz Attempts</h3>
+          </div>
+          <div className="card-body">
+            <h4>{quiz.title}</h4>
+            
+            {quiz.multipleAttempts && (
+              <div className="alert alert-info">
+                <p><strong>Attempts Allowed:</strong> {quiz.attemptsAllowed}</p>
+                <p><strong>Attempts Used:</strong> {previousAttempts.length}</p>
+                <p><strong>Attempts Remaining:</strong> {attemptsRemaining}</p>
+              </div>
+            )}
+            
+            <div className="table-responsive mt-4">
+              <table className="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th>Attempt #</th>
+                    <th>Date</th>
+                    <th>Score</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previousAttempts.map((attempt: QuizSubmission, index: number) => (
+                    <tr key={attempt._id || index}>
+                      <td>{attempt.attemptNumber || (previousAttempts.length - index)}</td>
+                      <td>{formatDate(new Date(attempt.endTime))}</td>
+                      <td>
+                        {/* 适应后端返回的实际数据结构 */}
+                        {attempt.score && typeof attempt.score === 'object' && 'earned' in attempt.score ? (
+                          <>
+                            {attempt.score.earned}/{attempt.score.total} ({attempt.score.percentage}%)
+                          </>
+                        ) : (
+                          <>
+                            {attempt.score || 0}/{attempt.totalPoints || 0} ({attempt.score && attempt.totalPoints ? Math.round((attempt.score / attempt.totalPoints) * 100) : 0}%)
+                          </>
+                        )}
+                        <div className="progress mt-1" style={{ height: '5px' }}>
+                          <div 
+                            className={`progress-bar ${
+                              attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
+                                ? attempt.score.percentage >= 70 ? 'bg-success' : 'bg-danger'
+                                : attempt.score && attempt.totalPoints
+                                  ? (attempt.score / attempt.totalPoints) * 100 >= 70 ? 'bg-success' : 'bg-danger'
+                                  : 'bg-danger'
+                            }`} 
+                            role="progressbar" 
+                            style={{ 
+                              width: `${
+                                attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
+                                  ? attempt.score.percentage
+                                  : attempt.score && attempt.totalPoints
+                                    ? (attempt.score / attempt.totalPoints) * 100
+                                    : 0
+                              }%` 
+                            }} 
+                            aria-valuenow={
+                              attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
+                                ? attempt.score.percentage
+                                : attempt.score && attempt.totalPoints
+                                  ? (attempt.score / attempt.totalPoints) * 100
+                                  : 0
+                            } 
+                            aria-valuemin={0} 
+                            aria-valuemax={100}
+                          ></div>
+                        </div>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => {
+                            setSelectedAttempt(attempt);
+                            
+                            // 转换答案格式以适应前端期望的格式
+                            const formattedAnswers: UserAnswers = {};
+                            if (Array.isArray(attempt.answers)) {
+                              attempt.answers.forEach((answer: any) => {
+                                formattedAnswers[answer.questionId] = {
+                                  selectedOption: answer.selectedOptionIndex,
+                                  textAnswer: answer.blankAnswer,
+                                  isCorrect: answer.isCorrect
+                                };
+                              });
+                            }
+                            setUserAnswers(formattedAnswers);
+                            
+                            // 转换分数格式以适应前端期望的格式
+                            const formattedScore = {
+                              earned: attempt.score || 0,
+                              total: attempt.totalPoints || 0,
+                              percentage: attempt.score && attempt.totalPoints 
+                                ? Math.round((attempt.score / attempt.totalPoints) * 100) 
+                                : 0
+                            };
+                            setScore(formattedScore);
+                            
+                            setQuizSubmitted(true);
+                            setCurrentStep('results');
+                          }}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div className="d-flex justify-content-between mt-4 mb-5">
+          {!attemptLimitReached && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                setQuizSubmitted(false);
+                setCurrentStep('taking');
+                
+                // Reset answers for a new attempt
+                if (quiz && quiz.questions) {
+                  const initialAnswers: UserAnswers = {};
+                  quiz.questions.forEach((question: any) => {
+                    initialAnswers[question._id] = {};
+                  });
+                  setUserAnswers(initialAnswers);
+                  
+                  // Reset timer if quiz has time limit
+                  if (quiz.timeLimit) {
+                    setTimeRemaining(quiz.timeLimit * 60);
+                  }
+                }
+              }}
+            >
+              Take New Attempt
+            </button>
+          )}
+          
+          <button 
+            className="btn btn-success"
+            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+          >
+            Return to Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render unavailable page
+  const renderUnavailablePage = () => {
+    return (
+      <div className="quiz-unavailable-container">
+        <div className="card mb-4">
+          <div className="card-header bg-primary text-white">
+            <h3 className="mb-0">Quiz Unavailable</h3>
+          </div>
+          <div className="card-body">
+            <h4>{quiz.title}</h4>
+            <p>This quiz is not available at this time.</p>
+            <p>Please try again later.</p>
+          </div>
+        </div>
+        
+        <div className="d-flex justify-content-between mt-4 mb-5">
+          <button 
+            className="btn btn-success"
+            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+          >
+            Return to Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Add a button to view quiz history in the navigation
+  const renderNavigation = () => {
+    return (
+      <div className="d-flex justify-content-between mb-4">
+        <button
+          className="btn btn-outline-secondary"
+          onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+        >
+          Back to Quizzes
+        </button>
+        
+        {previousAttempts.length > 0 && currentStep !== 'history' && (
+          <button
+            className="btn btn-outline-info"
+            onClick={() => setCurrentStep('history')}
+          >
+            View Previous Attempts
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="container-fluid py-4">
-      {currentStep === 'taking' ? renderTakingPage() : renderResultsPage()}
+      {renderNavigation()}
+      
+      {currentStep === 'taking' && renderTakingPage()}
+      {currentStep === 'results' && renderResultsPage()}
+      {currentStep === 'history' && renderHistoryPage()}
+      {currentStep === 'unavailable' && renderUnavailablePage()}
     </div>
   );
 }

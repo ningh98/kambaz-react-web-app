@@ -17,6 +17,7 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
     const navigate = useNavigate();
     const [openMenu, setOpenMenu] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [isPublished, setIsPublished] = useState(quiz.published);
 
     
 
@@ -36,10 +37,13 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
 
     const handlePublishToggle = async () => {
       try {
+        // 更新本地状态，立即反映在 UI 上
+        setIsPublished(!isPublished);
+        
         // 创建更新后的测验对象
         const updatedQuiz = {
           ...quiz,
-          published: !quiz.published
+          published: !isPublished
         };
         
         // 调用 API 更新测验
@@ -51,12 +55,14 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
         // 关闭菜单
         setOpenMenu(false);
       } catch (error) {
-        console.error("发布/取消发布测验失败:", error);
+        // 如果出错，恢复原来的状态
+        setIsPublished(isPublished);
+        console.error("Failed to publish/unpublish quiz:", error);
       }
     }
   return (
     <div>
-        {quiz.published ? (
+        {isPublished ? (
           <GreenCheckmark onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
         ) : (
           <FaBan className="text-danger me-2" onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
@@ -83,7 +89,7 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
           </li>
           <li>
             <button className="dropdown-item" onClick={handlePublishToggle}>
-              {quiz.published ? "Unpublish" : "Publish"}
+              {isPublished ? "Unpublish" : "Publish"}
             </button>
           </li>
           <li>
