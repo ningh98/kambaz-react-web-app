@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { FaArrowRight, FaCheck, FaEdit, FaTrash } from 'react-icons/fa';
 
 interface MultipleChoiceAnswersProps {
@@ -17,10 +19,8 @@ export default function MultipleChoiceAnswers(props: MultipleChoiceAnswersProps)
         setAnswers,
         correctIndex,
         handleCorrectChange,
-        focusedIndex,
         setFocusedIndex,
         preventBlur,
-        setPreventBlur,
     } = props;
 
     // 删除答案选项

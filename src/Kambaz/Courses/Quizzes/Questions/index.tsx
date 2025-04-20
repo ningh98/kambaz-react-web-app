@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
@@ -43,9 +44,9 @@ export default function Questions() {
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuiz, setCurrentQuiz] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [, setIsEditing] = useState<boolean>(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [isNewQuestion, setIsNewQuestion] = useState<boolean>(false);
+  const [isNewQuestion] = useState<boolean>(false);
   const [totalPoints, setTotalPoints] = useState<number>(0);
   const [showModal, setShowModal] = useState<boolean>(false);
 
@@ -446,7 +447,7 @@ export default function Questions() {
             zIndex: 10000
           }}>
             <QuestionEditor 
-              question={currentQuestion}
+              question={currentQuestion || undefined}
               onSave={handleSaveQuestion}
               isNew={isNewQuestion}
               isOpen={showModal}
