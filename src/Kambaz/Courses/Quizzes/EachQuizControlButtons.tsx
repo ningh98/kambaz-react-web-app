@@ -63,7 +63,7 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
   return (
     <div>
         {isPublished ? (
-          <GreenCheckmark onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
+          <button onClick={handlePublishToggle} style={{ cursor: 'pointer' }}><GreenCheckmark   /></button>
         ) : (
           <FaBan className="text-danger me-2" onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
         )}
