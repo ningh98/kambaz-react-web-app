@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDispatch } from "react-redux";
 import GreenCheckmark from "../Modules/GreenCheckmark";
-import { deleteQuiz} from "./reducer";
+import { deleteQuiz, updateQuiz } from "./reducer";
 import * as quizClient from "../client";
 import { IoEllipsisVertical } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import DeleteModal from "./DeleteModal";
+import { FaBan } from "react-icons/fa";
 
 
 
@@ -16,6 +17,7 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
     const navigate = useNavigate();
     const [openMenu, setOpenMenu] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [isPublished, setIsPublished] = useState(quiz.published);
 
     
 
@@ -34,11 +36,37 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
     }
 
     const handlePublishToggle = async () => {
-
+      try {
+        // 更新本地状态，立即反映在 UI 上
+        setIsPublished(!isPublished);
+        
+        // 创建更新后的测验对象
+        const updatedQuiz = {
+          ...quiz,
+          published: !isPublished
+        };
+        
+        // 调用 API 更新测验
+        const response = await quizClient.updateQuiz(updatedQuiz);
+        
+        // 更新 Redux 状态
+        dispatch(updateQuiz(response));
+        
+        // 关闭菜单
+        setOpenMenu(false);
+      } catch (error) {
+        // 如果出错，恢复原来的状态
+        setIsPublished(isPublished);
+        console.error("Failed to publish/unpublish quiz:", error);
+      }
     }
   return (
     <div>
-        <GreenCheckmark />
+        {isPublished ? (
+          <GreenCheckmark onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
+        ) : (
+          <FaBan className="text-danger me-2" onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
+        )}
         <IoEllipsisVertical className="fs-4"
         onClick={() => setOpenMenu(o => !o)} />
         {openMenu && (
@@ -61,7 +89,12 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
           </li>
           <li>
             <button className="dropdown-item" onClick={handlePublishToggle}>
-              {quiz.published ? "Unpublish" : "Publish"}
+              {isPublished ? "Unpublish" : "Publish"}
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item">
+              Copy to...
             </button>
           </li>
         </ul>

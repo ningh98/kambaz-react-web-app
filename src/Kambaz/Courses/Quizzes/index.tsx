@@ -62,6 +62,16 @@ export default function Quizzes() {
     const { currentUser } = useSelector((state: any) => state.accountReducer);
     const { quizzes } = useSelector((state: any) => state.quizzesReducer);
     
+    // 根据用户角色过滤测验
+    const filteredQuizzes = quizzes.filter((quiz: any) => {
+      // 如果是教师或管理员，显示所有测验
+      if (currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN") {
+        return true;
+      }
+      // 如果是学生，只显示已发布的测验
+      return quiz.published === true;
+    });
+  
   return (
     <div id="wd-quizzes">
       <div className="d-flex justify-content-between align-items-center mt-2">
@@ -82,8 +92,12 @@ export default function Quizzes() {
                 Quizzes
             </div>
             <ul className="wd-quizzes list-group rounded-0">
-              {quizzes
-                .map((quiz: any)=>(
+              {filteredQuizzes.length === 0 ? (
+                <li className="list-group-item p-3 mb-5 fs-5 border-gray text-center">
+                  <p>No quizzes available. {currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN" ? "Click the '+ Quiz' button to create a new quiz." : ""}</p>
+                </li>
+              ) : (
+                filteredQuizzes.map((quiz: any)=>(
                   <li key={quiz._id} className="wd-quiz list-group-item p-3 mb-5 fs-5 border-gray d-flex align-items-center">
                     {/* <div className="me-3 d-flex align-items-center"> */}
                         <IoRocketOutline className="me-2 fs-3" />
@@ -96,13 +110,14 @@ export default function Quizzes() {
                         {quiz.title}
                       </a>
                       <br />
-                      {quizAvailability(quiz)} |{" "} <b>Due</b> {formatDate(quiz?.dueDate)} | {quiz.points} pts | {quiz.numberOfQuestions} Questions
+                      {quizAvailability(quiz)} |{" "} <b>Due</b> {formatDate(quiz?.dueDate)} | {quiz.points} pts | {quiz.questions?.length || 0} Questions
                     </div>
                     <div className="d-flex align-items-center">
-                      {currentUser?.role === "FACULTY" && <EachQuizControlButtons quiz={quiz}/>}
+                      {(currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN") && <EachQuizControlButtons quiz={quiz}/>}
                     </div>
                   </li>
-                ))}
+                ))
+              )}
             </ul>
             
 
