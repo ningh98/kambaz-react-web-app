@@ -12,7 +12,7 @@ export default function Labs() {
     <Provider store={store}>
     <div id="wd-labs">
       <h1>Labs</h1>
-      <h3>Ninghui Cai</h3>
+      <h3>Ninghui Cai & Bin Yang CS5610 Team Project Quiz</h3>
       <TOC />
       <Routes>
         <Route path="/" element={<Navigate to="Lab1" />} />
