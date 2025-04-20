@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import axios from 'axios';
 import './QuizPreview.css';
 
-// 答案类型定义
+// Answer type definition
 interface UserAnswers {
   [questionId: string]: {
     selectedOption?: number;
@@ -13,19 +14,23 @@ interface UserAnswers {
   };
 }
 
-export default function QuizPreview() {
+export default function QuizTake() {
   const { cid, qid } = useParams();
   const navigate = useNavigate();
   const { quizzes } = useSelector((state: any) => state.quizzesReducer);
   const quiz = quizzes.find((q: any) => q._id === qid);
+  const { currentUser } = useSelector((state: any) => state.accountReducer);
   
-  const [currentStep, setCurrentStep] = useState<'preview' | 'results'>('preview');
+  const [currentStep, setCurrentStep] = useState<'taking' | 'results'>('taking');
   const [userAnswers, setUserAnswers] = useState<UserAnswers>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState({ earned: 0, total: 0, percentage: 0 });
   const [startTime] = useState(new Date());
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  // 初始化用户答案
+  // Initialize user answers and timer
   useEffect(() => {
     if (quiz && quiz.questions) {
       const initialAnswers: UserAnswers = {};
@@ -33,10 +38,45 @@ export default function QuizPreview() {
         initialAnswers[question._id] = {};
       });
       setUserAnswers(initialAnswers);
+      
+      // Set up timer if quiz has time limit
+      if (quiz.timeLimit) {
+        setTimeRemaining(quiz.timeLimit * 60); // Convert minutes to seconds
+      }
     }
   }, [quiz]);
 
-  // 如果没有找到测验，显示错误信息
+  // Timer countdown effect
+  useEffect(() => {
+    if (timeRemaining !== null && timeRemaining > 0 && !quizSubmitted) {
+      const timer = setTimeout(() => {
+        setTimeRemaining(timeRemaining - 1);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    } else if (timeRemaining === 0 && !quizSubmitted) {
+      // Auto-submit when time runs out
+      handleSubmitQuiz();
+    }
+  }, [timeRemaining, quizSubmitted]);
+
+  // Anti-cheating: Add event listener for page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !quizSubmitted && quiz?.preventTabSwitching) {
+        // Could implement a warning or counter here
+        console.log("Tab switching detected during quiz");
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [quizSubmitted, quiz]);
+
+  // If quiz not found, show error message
   if (!quiz) {
     return (
       <div className="alert alert-danger">
@@ -45,7 +85,15 @@ export default function QuizPreview() {
     );
   }
 
-  // 处理多选题答案选择
+  // Format time remaining as MM:SS
+  const formatTimeRemaining = () => {
+    if (timeRemaining === null) return "No time limit";
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  // Handle multiple choice answer selection
   const handleMultipleChoiceAnswer = (questionId: string, optionIndex: number) => {
     setUserAnswers({
       ...userAnswers,
@@ -56,7 +104,7 @@ export default function QuizPreview() {
     });
   };
 
-  // 处理判断题答案选择
+  // Handle true/false answer selection
   const handleTrueFalseAnswer = (questionId: string, isTrue: boolean) => {
     setUserAnswers({
       ...userAnswers,
@@ -67,7 +115,7 @@ export default function QuizPreview() {
     });
   };
 
-  // 处理填空题答案输入
+  // Handle fill in the blank answer input
   const handleFillInBlankAnswer = (questionId: string, text: string) => {
     setUserAnswers({
       ...userAnswers,
@@ -78,8 +126,12 @@ export default function QuizPreview() {
     });
   };
 
-  // 提交测验并评分
-  const handleSubmitQuiz = () => {
+  // Submit quiz and grade it
+  const handleSubmitQuiz = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    
     let earnedPoints = 0;
     let totalPoints = 0;
     
@@ -92,7 +144,6 @@ export default function QuizPreview() {
       if (question.questionType === 'Multiple Choice') {
         const userSelectedOption = userAnswers[question._id]?.selectedOption;
         if (userSelectedOption !== undefined) {
-          // 检查选择的选项是否是正确答案
           isCorrect = question.options && question.options[userSelectedOption]?.isCorrect === true;
           if (isCorrect) {
             earnedPoints += question.points;
@@ -101,7 +152,6 @@ export default function QuizPreview() {
       } else if (question.questionType === 'True/False') {
         const userSelectedOption = userAnswers[question._id]?.selectedOption;
         if (userSelectedOption !== undefined) {
-          // 检查是否选择了正确的 True/False 选项
           isCorrect = (userSelectedOption === 0 && question.isTrueCorrect === true) || 
                      (userSelectedOption === 1 && question.isTrueCorrect === false);
           if (isCorrect) {
@@ -111,9 +161,13 @@ export default function QuizPreview() {
       } else if (question.questionType === 'Fill in the Blank') {
         const userTextAnswer = userAnswers[question._id]?.textAnswer?.trim().toLowerCase();
         if (userTextAnswer) {
-          // 检查填写的答案是否匹配任何可能的正确答案
           isCorrect = question.blankAnswers && question.blankAnswers.some(
-            (answer: any) => answer.text.toLowerCase() === userTextAnswer
+            (answer: any) => {
+              if (answer.caseSensitive) {
+                return answer.text === userAnswers[question._id]?.textAnswer?.trim();
+              }
+              return answer.text.toLowerCase() === userTextAnswer;
+            }
           );
           if (isCorrect) {
             earnedPoints += question.points;
@@ -121,7 +175,6 @@ export default function QuizPreview() {
         }
       }
       
-      // 更新答案的正确性
       gradedAnswers[question._id] = {
         ...gradedAnswers[question._id],
         isCorrect
@@ -132,11 +185,37 @@ export default function QuizPreview() {
     
     setUserAnswers(gradedAnswers);
     setScore({ earned: earnedPoints, total: totalPoints, percentage });
-    setQuizSubmitted(true);
-    setCurrentStep('results');
+    
+    try {
+      // Save quiz submission to database
+      const quizSubmission = {
+        quizId: qid,
+        courseId: cid,
+        studentId: currentUser._id,
+        answers: gradedAnswers,
+        score: {
+          earned: earnedPoints,
+          total: totalPoints,
+          percentage
+        },
+        startTime: startTime.toISOString(),
+        endTime: new Date().toISOString(),
+        timeSpent: Math.floor((new Date().getTime() - startTime.getTime()) / 1000) // in seconds
+      };
+      
+      await axios.post(`${process.env.REACT_APP_API_BASE}/api/quizzes/${qid}/submissions`, quizSubmission);
+      
+      setQuizSubmitted(true);
+      setCurrentStep('results');
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      setSubmissionError("Failed to submit quiz. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // 格式化日期
+  // Format date
   const formatDate = (date: Date) => {
     return date.toLocaleString('en-US', {
       month: 'short',
@@ -147,7 +226,7 @@ export default function QuizPreview() {
     });
   };
 
-  // 渲染多选题
+  // Render multiple choice question
   const renderMultipleChoiceQuestion = (question: any) => {
     return (
       <div className="question-options mt-3">
@@ -181,7 +260,7 @@ export default function QuizPreview() {
     );
   };
 
-  // 渲染判断题
+  // Render true/false question
   const renderTrueFalseQuestion = (question: any) => {
     return (
       <div className="question-options mt-3">
@@ -237,7 +316,7 @@ export default function QuizPreview() {
     );
   };
 
-  // 渲染填空题
+  // Render fill in the blank question
   const renderFillInBlankQuestion = (question: any) => {
     return (
       <div className="question-options mt-3">
@@ -274,7 +353,7 @@ export default function QuizPreview() {
     );
   };
 
-  // 渲染问题
+  // Render question
   const renderQuestion = (question: any, index: number) => {
     return (
       <div key={question._id} className="card mb-4">
@@ -308,22 +387,17 @@ export default function QuizPreview() {
     );
   };
 
-  // 渲染预览页面
-  const renderPreviewPage = () => {
+  // Render quiz taking page
+  const renderTakingPage = () => {
     return (
       <div className="quiz-preview-container">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h2>{quiz.title}</h2>
-          <button 
-            className="btn btn-primary"
-            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}/edit`)}
-          >
-            Edit Quiz
-          </button>
-        </div>
-        
-        <div className="alert alert-info">
-          <strong>Preview Mode:</strong> This is how students will see this quiz. Your answers will not be saved to the database.
+          {timeRemaining !== null && (
+            <div className={`time-remaining ${timeRemaining < 60 ? 'text-danger' : ''}`}>
+              <strong>Time Remaining:</strong> {formatTimeRemaining()}
+            </div>
+          )}
         </div>
         
         <div className="card mb-4">
@@ -344,26 +418,32 @@ export default function QuizPreview() {
           renderQuestion(question, index)
         )}
         
+        {submissionError && (
+          <div className="alert alert-danger mb-4">
+            {submissionError}
+          </div>
+        )}
+        
         <div className="d-flex justify-content-between mt-4 mb-5">
           <button 
             className="btn btn-secondary"
             onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}`)}
           >
-            Cancel Preview
+            Cancel Quiz
           </button>
           <button 
             className="btn btn-success"
             onClick={handleSubmitQuiz}
-            disabled={quizSubmitted}
+            disabled={quizSubmitted || isSubmitting}
           >
-            Submit Quiz
+            {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
         </div>
       </div>
     );
   };
 
-  // 渲染结果页面
+  // Render results page
   const renderResultsPage = () => {
     return (
       <div className="quiz-results-container">
@@ -401,15 +481,15 @@ export default function QuizPreview() {
         <div className="d-flex justify-content-between mt-4 mb-5">
           <button 
             className="btn btn-primary"
-            onClick={() => setCurrentStep('preview')}
+            onClick={() => setCurrentStep('taking')}
           >
-            Review Quiz
+            Review Answers
           </button>
           <button 
             className="btn btn-success"
-            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}/edit`)}
+            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
           >
-            Edit Quiz
+            Return to Quizzes
           </button>
         </div>
       </div>
@@ -418,7 +498,7 @@ export default function QuizPreview() {
 
   return (
     <div className="container-fluid py-4">
-      {currentStep === 'preview' ? renderPreviewPage() : renderResultsPage()}
+      {currentStep === 'taking' ? renderTakingPage() : renderResultsPage()}
     </div>
   );
 }

@@ -1,0 +1,11 @@
+.question-editor-page {
+    padding: 20px;
+  }
+  
+  .question-editor-page .card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .question-editor-page .card-header {
+    background-color: #f8f9fa;
+  }

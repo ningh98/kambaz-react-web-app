@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDispatch } from "react-redux";
 import GreenCheckmark from "../Modules/GreenCheckmark";
-import { deleteQuiz} from "./reducer";
+import { deleteQuiz, updateQuiz } from "./reducer";
 import * as quizClient from "../client";
 import { IoEllipsisVertical } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import DeleteModal from "./DeleteModal";
+import { FaBan } from "react-icons/fa";
 
 
 
@@ -34,11 +35,32 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
     }
 
     const handlePublishToggle = async () => {
-
+      try {
+        // 创建更新后的测验对象
+        const updatedQuiz = {
+          ...quiz,
+          published: !quiz.published
+        };
+        
+        // 调用 API 更新测验
+        const response = await quizClient.updateQuiz(updatedQuiz);
+        
+        // 更新 Redux 状态
+        dispatch(updateQuiz(response));
+        
+        // 关闭菜单
+        setOpenMenu(false);
+      } catch (error) {
+        console.error("发布/取消发布测验失败:", error);
+      }
     }
   return (
     <div>
-        <GreenCheckmark />
+        {quiz.published ? (
+          <GreenCheckmark onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
+        ) : (
+          <FaBan className="text-danger me-2" onClick={handlePublishToggle} style={{ cursor: 'pointer' }} />
+        )}
         <IoEllipsisVertical className="fs-4"
         onClick={() => setOpenMenu(o => !o)} />
         {openMenu && (
@@ -62,6 +84,11 @@ export default function EachQuizControlButtons({quiz}: { quiz: any }) {
           <li>
             <button className="dropdown-item" onClick={handlePublishToggle}>
               {quiz.published ? "Unpublish" : "Publish"}
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item">
+              Copy to...
             </button>
           </li>
         </ul>

@@ -1,0 +1,20 @@
+.quiz-preview-container,
+.quiz-results-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.score-summary {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.progress {
+  height: 25px;
+  margin-top: 15px;
+}
+
+.question-options {
+  padding-left: 20px;
+}

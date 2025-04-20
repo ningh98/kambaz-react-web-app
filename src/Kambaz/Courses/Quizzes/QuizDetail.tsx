@@ -7,7 +7,11 @@ export default function QuizDetail() {
     const { cid, qid } = useParams()
     const navigate = useNavigate()
     const { quizzes } = useSelector((state: any) => state.quizzesReducer);
+    const { currentUser } = useSelector((state: any) => state.accountReducer);
     const existingQuiz = quizzes.find((quiz: { _id: string | undefined; }) => quiz._id === qid)
+
+    // 检查用户是否有权限编辑测验
+    const canEdit = currentUser?.role === "FACULTY" || currentUser?.role === "ADMIN";
 
     const base = `/Kambaz/Courses/${cid}/Quizzes/${qid}`
 
@@ -27,19 +31,32 @@ export default function QuizDetail() {
     <>
     <div className="d-flex justify-content-center">
       <nav className="mb-3">
-        <button
-          onClick={() => navigate(`${base}/edit`)}
-          className="btn btn-outline-primary me-1"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => navigate(`${base}/preview`)}
-          className="btn btn-outline-primary me-1"
-        >
-          Preview
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => navigate(`${base}/edit`)}
+              className="btn btn-outline-primary me-1"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => navigate(`${base}/preview`)}
+              className="btn btn-outline-primary me-1"
+            >
+              Preview
+            </button>
+          </>
+        )}
         
+        {/* 为学生用户添加 Start Quiz 按钮 */}
+        {!canEdit && existingQuiz?.published && (
+          <button
+            onClick={() => navigate(`${base}/take`)}
+            className="btn btn-success me-1"
+          >
+            Start Quiz
+          </button>
+        )}
       </nav>
 
       
