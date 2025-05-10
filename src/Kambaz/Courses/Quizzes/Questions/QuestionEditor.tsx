@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import "./QuestionEditor.css"
 import MultipleChoiceAnswers from "./MultipleChoiceAnswers"
 import TrueFalseAnswers from "./TrueFalseAnswers"
@@ -60,6 +61,10 @@ export default function QuestionEditor({
     const [preventBlur, setPreventBlur] = useState<boolean>(false);
     
     const [errors, setErrors] = useState<{[key: string]: string}>({});
+    
+    // 获取导航和路由参数
+    const navigate = useNavigate();
+    const { cid, qid } = useParams();
     
     // 当接收到问题数据时，初始化编辑器状态
     useEffect(() => {
@@ -287,6 +292,11 @@ export default function QuestionEditor({
             setQuestionType("multipleChoice");
             setAnswers([]);
             setCorrectIndex(null);
+            
+            // 自动返回问题列表页面
+            if (cid && qid) {
+                navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}/Edit/Questions`);
+            }
         }
     };
 

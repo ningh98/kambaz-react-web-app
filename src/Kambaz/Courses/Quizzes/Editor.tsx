@@ -38,7 +38,7 @@ export default function QuizEditor() {
         title: "New Quiz",
         instructions: "New Quiz Instructions",
         quizType: "Graded Quiz",
-        points: 100,
+        points: 0, 
         assignmentGroup: "Quizzes",
         shuffleAnswers: true,
         timeLimit: 20,
@@ -54,19 +54,86 @@ export default function QuizEditor() {
         untilDate: "",
         course: cid,
         published: false,
+        questions: []
     })
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        setQuiz({ ...quiz, [e.target.name]: e.target.value})
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      // 从 Redux 获取最新的测验数据
+      if (existingQuiz && !isNewQuiz) {
+        console.log("Updating quiz from Redux:", existingQuiz);
+        setQuiz(existingQuiz);
+        
+        // 检查并更新总分
+        if (existingQuiz.questions && Array.isArray(existingQuiz.questions)) {
+          const total = existingQuiz.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
+          
+          // 如果有问题，总分应该是问题分数的总和
+          if (existingQuiz.questions.length > 0 && total !== existingQuiz.points) {
+            console.log("Updating quiz points from Redux data:", total);
+            const updatedQuiz = {
+              ...existingQuiz,
+              points: total
+            };
+            
+            // 更新到服务器
+            courseClient.updateQuiz(updatedQuiz).then(response => {
+              dispatch(updateQuiz(response));
+              // 确保本地状态也更新
+              setQuiz(response);
+            });
+          }
+        }
       }
+    }, [existingQuiz, isNewQuiz, dispatch]);
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      // 监听 quiz.questions 变化，自动计算总分
+      if (quiz.questions && Array.isArray(quiz.questions)) {
+        const totalPoints = quiz.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
+        
+        // 如果有问题，总分应该是问题分数的总和
+        if (quiz.questions.length > 0 && totalPoints !== quiz.points) {
+          console.log("Updating quiz points in Editor from local state:", totalPoints);
+          setQuiz(prevQuiz => ({
+            ...prevQuiz,
+            points: totalPoints
+          }));
+          
+          // 如果不是新测验，也更新到服务器
+          if (!isNewQuiz && quiz._id) {
+            const updatedQuiz = {
+              ...quiz,
+              points: totalPoints
+            };
+            courseClient.updateQuiz(updatedQuiz).then(response => {
+              dispatch(updateQuiz(response));
+            });
+          }
+        }
+      }
+    }, [quiz.questions, quiz._id, isNewQuiz, dispatch]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        // 如果修改的是分数字段，且测验有问题，不允许手动修改
+        if (e.target.name === "points" && quiz.questions && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
+          // 计算问题总分
+          const totalPoints = quiz.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
+          // 如果有问题，使用问题总分，否则使用输入值
+          setQuiz({ ...quiz, points: totalPoints });
+          return;
+        }
+        
+        setQuiz({ ...quiz, [e.target.name]: e.target.value});
+    }
+    
     const addNewQuiz = async () => {
         if (!cid) return;
         const newQuiz = { ...quiz }
         console.log("creating quiz for course", cid, quiz);
         const createdQuiz = await courseClient.createQuizForCourse(cid ?? "", newQuiz);
         dispatch(addQuiz(createdQuiz));
-    
-
     }
 
     const updateQuizOnServer = async (quiz: any) => {
@@ -83,9 +150,9 @@ export default function QuizEditor() {
           alert("Please enter the instructions for the quiz.");
           return false;
         }
-        if (!quiz.points) {
-          alert("Please enter the points for the quiz.");
-          return false;
+        // 如果没有问题，允许使用默认分数
+        if (!quiz.points && (!quiz.questions || quiz.questions.length === 0)) {
+          setQuiz({ ...quiz, points: 100 }); // 如果没有问题，默认设置为100分
         }
         if (!quiz.dueDate) {
           alert("Please select a due date.");

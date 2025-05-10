@@ -39,7 +39,7 @@ export default function QuizTake() {
   const quiz = quizzes.find((q: any) => q._id === qid);
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   
-  const [currentStep, setCurrentStep] = useState<'taking' | 'results' | 'history' | 'unavailable'>('taking');
+  const [currentStep, setCurrentStep] = useState<'taking' | 'results' | 'history' | 'unavailable' | 'access-code'>('taking');
   const [userAnswers, setUserAnswers] = useState<UserAnswers>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState({ earned: 0, total: 0, percentage: 0 });
@@ -55,6 +55,12 @@ export default function QuizTake() {
   const [attemptLimitReached, setAttemptLimitReached] = useState<boolean>(false);
   const [isLoadingAttempts, setIsLoadingAttempts] = useState<boolean>(true);
   const [selectedAttempt, setSelectedAttempt] = useState<QuizSubmission | null>(null);
+  const [isLastAttempt, setIsLastAttempt] = useState<boolean>(false);
+  
+  // Access code state variables
+  const [accessCodeInput, setAccessCodeInput] = useState<string>('');
+  const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
+  const [accessCodeVerified, setAccessCodeVerified] = useState<boolean>(false);
 
   // Initialize user answers and timer
   useEffect(() => {
@@ -113,6 +119,15 @@ export default function QuizTake() {
             return;
           }
           
+          // Check if quiz has access code and if it's already verified
+          if (quiz?.accessCode && !accessCodeVerified) {
+            // If quiz has access code and it's not verified, show access code page
+            console.log('Quiz requires access code');
+            setCurrentStep('access-code');
+            setIsLoadingAttempts(false);
+            return;
+          }
+          
           // Check if student has reached the attempt limit
           if (quiz?.multipleAttempts && quiz?.attemptsAllowed) {
             const attemptsUsed = sortedAttempts.length;
@@ -126,7 +141,14 @@ export default function QuizTake() {
             });
             
             setAttemptsRemaining(remaining);
+            
+            // 设置当前尝试是第几次尝试
+            // 如果已经有尝试记录，当前尝试是最后一次尝试的下一次
+            // 如果没有尝试记录，当前尝试是第一次
             setCurrentAttemptNumber(attemptsUsed + 1);
+            
+            // Check if this is the last attempt
+            setIsLastAttempt(Number(quiz.attemptsAllowed) === attemptsUsed + 1);
             
             if (remaining <= 0) {
               console.log('Attempt limit reached, disabling new attempts');
@@ -402,7 +424,7 @@ export default function QuizTake() {
             <label className="form-check-label" htmlFor={`option-${question._id}-${index}`}>
               {option.text}
             </label>
-            {quizSubmitted && (
+            {quizSubmitted && isLastAttempt && (
               <>
                 {option.isCorrect && (
                   <span className="badge bg-success ms-2">Correct Answer</span>
@@ -435,7 +457,7 @@ export default function QuizTake() {
           <label className="form-check-label" htmlFor={`option-${question._id}-true`}>
             True
           </label>
-          {quizSubmitted && (
+          {quizSubmitted && isLastAttempt && (
             <>
               {question.isTrueCorrect && (
                 <span className="badge bg-success ms-2">Correct Answer</span>
@@ -459,7 +481,7 @@ export default function QuizTake() {
           <label className="form-check-label" htmlFor={`option-${question._id}-false`}>
             False
           </label>
-          {quizSubmitted && (
+          {quizSubmitted && isLastAttempt && (
             <>
               {!question.isTrueCorrect && (
                 <span className="badge bg-success ms-2">Correct Answer</span>
@@ -488,7 +510,7 @@ export default function QuizTake() {
             disabled={quizSubmitted}
           />
         </div>
-        {quizSubmitted && (
+        {quizSubmitted && isLastAttempt && (
           <div className="mt-2">
             {userAnswers[question._id]?.isCorrect ? (
               <div className="alert alert-success">
@@ -527,7 +549,7 @@ export default function QuizTake() {
           {question.questionType === 'True/False' && renderTrueFalseQuestion(question)}
           {question.questionType === 'Fill in the Blank' && renderFillInBlankQuestion(question)}
           
-          {quizSubmitted && (
+          {quizSubmitted && isLastAttempt && (
             <div className="mt-3">
               {userAnswers[question._id]?.isCorrect ? (
                 <div className="alert alert-success">
@@ -617,25 +639,33 @@ export default function QuizTake() {
             {quiz.multipleAttempts && (
               <>
                 <p><strong>Attempt:</strong> {currentAttemptNumber} of {quiz.attemptsAllowed}</p>
-                <p><strong>Attempts Remaining:</strong> {attemptsRemaining}</p>
+                <p><strong>Attempts Remaining:</strong> {Math.max(0, attemptsRemaining || 0)}</p>
               </>
             )}
             
-            <div className="score-summary text-center p-4">
-              <h2>Your Score: {score.earned}/{score.total} ({score.percentage}%)</h2>
-              <div className="progress">
-                <div 
-                  className={`progress-bar ${score.percentage >= 70 ? 'bg-success' : 'bg-danger'}`} 
-                  role="progressbar" 
-                  style={{ width: `${score.percentage}%` }} 
-                  aria-valuenow={score.percentage} 
-                  aria-valuemin={0} 
-                  aria-valuemax={100}
-                >
-                  {score.percentage}%
+            {isLastAttempt && (
+              <div className="score-summary text-center p-4">
+                <h2>Your Score: {score.earned}/{score.total} ({score.percentage}%)</h2>
+                <div className="progress">
+                  <div 
+                    className={`progress-bar ${score.percentage >= 70 ? 'bg-success' : 'bg-danger'}`} 
+                    role="progressbar" 
+                    style={{ width: `${score.percentage}%` }} 
+                    aria-valuenow={score.percentage} 
+                    aria-valuemin={0} 
+                    aria-valuemax={100}
+                  >
+                    {score.percentage}%
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+            
+            {!isLastAttempt && (
+              <div className="alert alert-info mt-3">
+                <p className="mb-0">You will be able to see your score and correct answers on your final attempt.</p>
+              </div>
+            )}
           </div>
         </div>
         
@@ -659,12 +689,19 @@ export default function QuizTake() {
                 // Reset for a new attempt
                 setQuizSubmitted(false);
                 setCurrentStep('taking');
-                setUserAnswers({});
-                setScore({ earned: 0, total: 0, percentage: 0 });
-                const newStartTime = new Date();
-                setStartTime(newStartTime);
-                if (quiz.timeLimit) {
-                  setTimeRemaining(quiz.timeLimit * 60);
+                
+                // Reset answers for a new attempt
+                if (quiz && quiz.questions) {
+                  const initialAnswers: UserAnswers = {};
+                  quiz.questions.forEach((question: any) => {
+                    initialAnswers[question._id] = {};
+                  });
+                  setUserAnswers(initialAnswers);
+                  
+                  // Reset timer if quiz has time limit
+                  if (quiz.timeLimit) {
+                    setTimeRemaining(quiz.timeLimit * 60);
+                  }
                 }
               }}
             >
@@ -672,7 +709,7 @@ export default function QuizTake() {
             </button>
           ) : null}
           
-          {previousAttempts.length > 0 && (
+          {previousAttempts.length > 0 && isLastAttempt && (
             <button 
               className="btn btn-info"
               onClick={() => setCurrentStep('history')}
@@ -734,90 +771,107 @@ export default function QuizTake() {
                   </tr>
                 </thead>
                 <tbody>
-                  {previousAttempts.map((attempt: QuizSubmission, index: number) => (
-                    <tr key={attempt._id || index}>
-                      <td>{attempt.attemptNumber || (previousAttempts.length - index)}</td>
-                      <td>{formatDate(new Date(attempt.endTime))}</td>
-                      <td>
-                        {/* 适应后端返回的实际数据结构 */}
-                        {attempt.score && typeof attempt.score === 'object' && 'earned' in attempt.score ? (
-                          <>
-                            {attempt.score.earned}/{attempt.score.total} ({attempt.score.percentage}%)
-                          </>
-                        ) : (
-                          <>
-                            {attempt.score || 0}/{attempt.totalPoints || 0} ({attempt.score && attempt.totalPoints ? Math.round((attempt.score / attempt.totalPoints) * 100) : 0}%)
-                          </>
-                        )}
-                        <div className="progress mt-1" style={{ height: '5px' }}>
-                          <div 
-                            className={`progress-bar ${
-                              attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
-                                ? attempt.score.percentage >= 70 ? 'bg-success' : 'bg-danger'
-                                : attempt.score && attempt.totalPoints
-                                  ? (attempt.score / attempt.totalPoints) * 100 >= 70 ? 'bg-success' : 'bg-danger'
-                                  : 'bg-danger'
-                            }`} 
-                            role="progressbar" 
-                            style={{ 
-                              width: `${
+                  {previousAttempts.map((attempt: QuizSubmission, index: number) => {
+                    // 计算当前尝试是第几次尝试
+                    // 按照时间倒序排列，最新的尝试在最前面
+                    // 所以尝试序号应该是总尝试次数减去索引
+                    const attemptNumber = previousAttempts.length - index;
+                    
+                    // 检查是否是最后一次允许的尝试
+                    const isLastAttempt = Number(quiz.attemptsAllowed) === previousAttempts.length && 
+                                          index === 0;
+                    
+                    return (
+                      <tr key={attempt._id || index}>
+                        <td>{attemptNumber}</td>
+                        <td>{formatDate(new Date(attempt.endTime))}</td>
+                        <td>
+                          {/* 适应后端返回的实际数据结构 */}
+                          {attempt.score && typeof attempt.score === 'object' && 'earned' in attempt.score ? (
+                            <>
+                              {attempt.score.earned}/{attempt.score.total} ({attempt.score.percentage}%)
+                            </>
+                          ) : (
+                            <>
+                              {attempt.score || 0}/{attempt.totalPoints || 0} ({attempt.score && attempt.totalPoints ? Math.round((attempt.score / attempt.totalPoints) * 100) : 0}%)
+                            </>
+                          )}
+                          <div className="progress mt-1" style={{ height: '5px' }}>
+                            <div 
+                              className={`progress-bar ${
+                                attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
+                                  ? attempt.score.percentage >= 70 ? 'bg-success' : 'bg-danger'
+                                  : attempt.score && attempt.totalPoints
+                                    ? (attempt.score / attempt.totalPoints) * 100 >= 70 ? 'bg-success' : 'bg-danger'
+                                    : 'bg-danger'
+                              }`} 
+                              role="progressbar" 
+                              style={{ 
+                                width: `${
+                                  attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
+                                    ? attempt.score.percentage
+                                    : attempt.score && attempt.totalPoints
+                                      ? (attempt.score / attempt.totalPoints) * 100
+                                      : 0
+                                }%` 
+                              }} 
+                              aria-valuenow={
                                 attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
                                   ? attempt.score.percentage
                                   : attempt.score && attempt.totalPoints
                                     ? (attempt.score / attempt.totalPoints) * 100
                                     : 0
-                              }%` 
-                            }} 
-                            aria-valuenow={
-                              attempt.score && typeof attempt.score === 'object' && 'percentage' in attempt.score
-                                ? attempt.score.percentage
-                                : attempt.score && attempt.totalPoints
-                                  ? (attempt.score / attempt.totalPoints) * 100
+                              } 
+                              aria-valuemin={0} 
+                              aria-valuemax={100}
+                            ></div>
+                          </div>
+                        </td>
+                        <td>
+                          <button 
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              setSelectedAttempt(attempt);
+                              
+                              // 转换答案格式以适应前端期望的格式
+                              const formattedAnswers: UserAnswers = {};
+                              if (Array.isArray(attempt.answers)) {
+                                attempt.answers.forEach((answer: any) => {
+                                  formattedAnswers[answer.questionId] = {
+                                    selectedOption: answer.selectedOptionIndex,
+                                    textAnswer: answer.blankAnswer,
+                                    isCorrect: answer.isCorrect
+                                  };
+                                });
+                              }
+                              setUserAnswers(formattedAnswers);
+                              
+                              // 转换分数格式以适应前端期望的格式
+                              const formattedScore = {
+                                earned: attempt.score || 0,
+                                total: attempt.totalPoints || 0,
+                                percentage: attempt.score && attempt.totalPoints 
+                                  ? Math.round((attempt.score / attempt.totalPoints) * 100) 
                                   : 0
-                            } 
-                            aria-valuemin={0} 
-                            aria-valuemax={100}
-                          ></div>
-                        </div>
-                      </td>
-                      <td>
-                        <button 
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => {
-                            setSelectedAttempt(attempt);
-                            
-                            // 转换答案格式以适应前端期望的格式
-                            const formattedAnswers: UserAnswers = {};
-                            if (Array.isArray(attempt.answers)) {
-                              attempt.answers.forEach((answer: any) => {
-                                formattedAnswers[answer.questionId] = {
-                                  selectedOption: answer.selectedOptionIndex,
-                                  textAnswer: answer.blankAnswer,
-                                  isCorrect: answer.isCorrect
-                                };
-                              });
-                            }
-                            setUserAnswers(formattedAnswers);
-                            
-                            // 转换分数格式以适应前端期望的格式
-                            const formattedScore = {
-                              earned: attempt.score || 0,
-                              total: attempt.totalPoints || 0,
-                              percentage: attempt.score && attempt.totalPoints 
-                                ? Math.round((attempt.score / attempt.totalPoints) * 100) 
-                                : 0
-                            };
-                            setScore(formattedScore);
-                            
-                            setQuizSubmitted(true);
-                            setCurrentStep('results');
-                          }}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                              };
+                              setScore(formattedScore);
+                              
+                              // 设置是否是最后一次尝试的标志
+                              setIsLastAttempt(Number(quiz.attemptsAllowed) === previousAttempts.length && index === 0);
+                              
+                              // 设置当前查看的尝试次数
+                              setCurrentAttemptNumber(attemptNumber);
+                              
+                              setQuizSubmitted(true);
+                              setCurrentStep('results');
+                            }}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -857,6 +911,83 @@ export default function QuizTake() {
           >
             Return to Quizzes
           </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Verify access code
+  const verifyAccessCode = async () => {
+    if (!quiz || !accessCodeInput) {
+      setAccessCodeError('Please enter an access code');
+      return;
+    }
+    
+    setAccessCodeError(null);
+    
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_REMOTE_SERVER}/api/quizzes/${qid}/access-code`,
+        { accessCode: accessCodeInput }
+      );
+      
+      if (response.data.success) {
+        console.log('Access code verified');
+        setAccessCodeVerified(true);
+        setCurrentStep('taking');
+      } else {
+        setAccessCodeError('Invalid access code');
+      }
+    } catch (error) {
+      console.error('Error verifying access code:', error);
+      setAccessCodeError('Error verifying access code. Please try again.');
+    }
+  };
+
+  // Render access code page
+  const renderAccessCodePage = () => {
+    return (
+      <div className="quiz-access-code-container">
+        <div className="card mb-4">
+          <div className="card-header bg-primary text-white">
+            <h3 className="mb-0">Quiz Access Code Required</h3>
+          </div>
+          <div className="card-body">
+            <h4>{quiz.title}</h4>
+            <p className="mb-4">This quiz requires an access code to start. Please enter the access code provided by your instructor.</p>
+            
+            <div className="form-group mb-3">
+              <label htmlFor="access-code" className="form-label">Access Code:</label>
+              <input
+                type="text"
+                id="access-code"
+                className={`form-control ${accessCodeError ? 'is-invalid' : ''}`}
+                value={accessCodeInput}
+                onChange={(e) => setAccessCodeInput(e.target.value)}
+                placeholder="Enter access code"
+              />
+              {accessCodeError && (
+                <div className="invalid-feedback">
+                  {accessCodeError}
+                </div>
+              )}
+            </div>
+            
+            <div className="d-flex justify-content-between mt-4">
+              <button 
+                className="btn btn-secondary"
+                onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}`)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={verifyAccessCode}
+              >
+                Submit Access Code
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -920,6 +1051,7 @@ export default function QuizTake() {
       {currentStep === 'results' && renderResultsPage()}
       {currentStep === 'history' && renderHistoryPage()}
       {currentStep === 'unavailable' && renderUnavailablePage()}
+      {currentStep === 'access-code' && renderAccessCodePage()}
     </div>
   );
 }

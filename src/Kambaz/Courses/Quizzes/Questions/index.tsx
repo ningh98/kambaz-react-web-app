@@ -50,18 +50,54 @@ export default function Questions() {
   const [totalPoints, setTotalPoints] = useState<number>(0);
   const [showModal, setShowModal] = useState<boolean>(false);
 
+  // 计算并更新测验总分
+  const updateTotalPoints = async (updatedQuestions: Question[]) => {
+    // 计算总分
+    const total = updatedQuestions.reduce((sum: number, q: Question) => sum + (q.points || 0), 0);
+    console.log("Calculated total points:", total, "from questions:", updatedQuestions);
+    setTotalPoints(total);
+    
+    // 更新测验对象中的总分
+    if (currentQuiz) {
+      // 确保总分是最新计算的值
+      const updatedQuiz = {
+        ...currentQuiz,
+        questions: updatedQuestions,
+        points: total
+      };
+      
+      console.log("Updating quiz with new total points:", total, "Previous points:", currentQuiz.points);
+      
+      try {
+        // 调用 API 更新测验
+        const response = await quizClient.updateQuiz(updatedQuiz);
+        console.log("Server response after updating points:", response);
+        
+        // 更新 Redux 状态
+        dispatch(updateQuiz(response));
+        
+        // 更新本地状态
+        setCurrentQuiz(response);
+        return response;
+      } catch (error) {
+        console.error('Failed to update quiz with new total points:', error);
+      }
+    }
+    return null;
+  };
+
   // 从服务器获取最新的 quiz 数据
   const fetchQuizData = async () => {
     if (!cid || !qid) return;
     
     try {
-      console.log("正在从服务器获取最新的 quiz 数据...");
+      console.log("Getting latest quiz data from server...");
       // 使用 findQuizzesForCourse 函数获取所有 quizzes，然后找到当前的 quiz
       const quizzes = await quizClient.findQuizzesForCourse(cid);
-      console.log("获取到所有 quizzes:", quizzes);
+      console.log("Retrieved all quizzes:", quizzes);
       
       const quiz = quizzes.find((q: any) => q._id === qid);
-      console.log("当前 quiz:", quiz);
+      console.log("Current quiz:", quiz);
       
       if (quiz) {
         // 更新 Redux 状态
@@ -71,16 +107,39 @@ export default function Questions() {
         setCurrentQuiz(quiz);
         if (quiz.questions && Array.isArray(quiz.questions)) {
           setQuestions(quiz.questions);
+          
           // 计算总分
           const total = quiz.questions.reduce((sum: number, q: Question) => sum + (q.points || 0), 0);
-          setTotalPoints(total);
+          console.log("Calculated total from fetched quiz:", total);
+          
+          // 如果计算的总分与当前总分不一致，立即更新
+          if (total !== quiz.points) {
+            console.log("Total points mismatch! Calculated:", total, "Current:", quiz.points);
+            setTotalPoints(total);
+            
+            // 立即更新到服务器
+            const updatedQuiz = {
+              ...quiz,
+              points: total
+            };
+            
+            try {
+              const response = await quizClient.updateQuiz(updatedQuiz);
+              dispatch(updateQuiz(response));
+              setCurrentQuiz(response);
+            } catch (err) {
+              console.error("Failed to update quiz points during fetch:", err);
+            }
+          } else {
+            setTotalPoints(total);
+          }
         } else {
           setQuestions([]);
           setTotalPoints(0);
         }
       }
     } catch (error) {
-      console.error("获取 quiz 数据失败:", error);
+      console.error("Failed to get quiz data:", error);
     }
   };
 
@@ -94,9 +153,31 @@ export default function Questions() {
           setCurrentQuiz(quiz);
           if (quiz.questions && Array.isArray(quiz.questions)) {
             setQuestions(quiz.questions);
+            
             // 计算总分
             const total = quiz.questions.reduce((sum: number, q: Question) => sum + (q.points || 0), 0);
-            setTotalPoints(total);
+            console.log("Calculated total from Redux:", total);
+            
+            // 如果计算的总分与当前总分不一致，立即更新
+            if (total !== quiz.points) {
+              console.log("Total points mismatch in Redux! Calculated:", total, "Current:", quiz.points);
+              setTotalPoints(total);
+              
+              // 立即更新到服务器
+              const updatedQuiz = {
+                ...quiz,
+                points: total
+              };
+              
+              quizClient.updateQuiz(updatedQuiz).then(response => {
+                dispatch(updateQuiz(response));
+                setCurrentQuiz(response);
+              }).catch(err => {
+                console.error("Failed to update quiz points from Redux:", err);
+              });
+            } else {
+              setTotalPoints(total);
+            }
           } else {
             setQuestions([]);
             setTotalPoints(0);
@@ -116,7 +197,11 @@ export default function Questions() {
   };
 
   // 打开问题编辑器 - 编辑现有问题
-  const handleEditQuestion = (question: Question) => {
+  const handleEditQuestion = (question: Question, index: number) => {
+    // 设置当前问题，并添加 index 属性
+    const questionWithIndex = { ...question, index };
+    setCurrentQuestion(questionWithIndex);
+    setIsEditing(true);
     navigate(`/Kambaz/Courses/${cid}/Quizzes/${qid}/Edit/Questions/${question._id}/edit`);
   };
 
@@ -135,34 +220,17 @@ export default function Questions() {
       // 添加新问题
       updatedQuestions = [...questions, question];
     } else {
-      // 更新现有问题
-      updatedQuestions = questions.map((q, index) => 
-        index === (currentQuestion as any).index ? question : q
+      // 更新现有问题 - 使用 _id 匹配而不是 index
+      updatedQuestions = questions.map((q) => 
+        q._id === question._id ? question : q
       );
     }
     
+    console.log("Updated questions after save:", updatedQuestions);
     setQuestions(updatedQuestions);
     
-    // 更新测验
-    if (currentQuiz) {
-      const updatedQuiz = {
-        ...currentQuiz,
-        questions: updatedQuestions,
-        points: updatedQuestions.reduce((sum, q) => sum + (q.points || 0), 0)
-      };
-      
-      try {
-        // 调用 API 更新测验
-        const response = await quizClient.updateQuiz(updatedQuiz);
-        // 更新 Redux 状态
-        dispatch(updateQuiz(response));
-        // 更新本地状态
-        setCurrentQuiz(response);
-        setTotalPoints(response.points);
-      } catch (error) {
-        console.error('Failed to update quiz with new questions:', error);
-      }
-    }
+    // 更新测验总分
+    await updateTotalPoints(updatedQuestions);
     
     setIsEditing(false);
     setCurrentQuestion(null);
@@ -173,28 +241,11 @@ export default function Questions() {
   const handleDeleteQuestion = async (index: number) => {
     if (window.confirm('Are you sure you want to delete this question?')) {
       const updatedQuestions = questions.filter((_, i) => i !== index);
+      console.log("Updated questions after delete:", updatedQuestions);
       setQuestions(updatedQuestions);
       
-      // 更新测验
-      if (currentQuiz) {
-        const updatedQuiz = {
-          ...currentQuiz,
-          questions: updatedQuestions,
-          points: updatedQuestions.reduce((sum, q) => sum + (q.points || 0), 0)
-        };
-        
-        try {
-          // 调用 API 更新测验
-          const response = await quizClient.updateQuiz(updatedQuiz);
-          // 更新 Redux 状态
-          dispatch(updateQuiz(response));
-          // 更新本地状态
-          setCurrentQuiz(response);
-          setTotalPoints(response.points);
-        } catch (error) {
-          console.error('Failed to update quiz after deleting question:', error);
-        }
-      }
+      // 更新测验总分
+      await updateTotalPoints(updatedQuestions);
     }
   };
 
@@ -264,8 +315,14 @@ export default function Questions() {
   const handleSaveAll = async () => {
     if (currentQuiz) {
       try {
+        // 更新测验总分
+        const updatedQuiz = {
+          ...currentQuiz,
+          points: totalPoints
+        };
+        
         // 调用 API 更新测验
-        const response = await quizClient.updateQuiz(currentQuiz);
+        const response = await quizClient.updateQuiz(updatedQuiz);
         // 更新 Redux 状态
         dispatch(updateQuiz(response));
         alert('Quiz saved successfully!');
@@ -357,7 +414,7 @@ export default function Questions() {
                   </button>
                   <button 
                     className="btn btn-sm btn-outline-primary" 
-                    onClick={() => handleEditQuestion(question)}
+                    onClick={() => handleEditQuestion(question, index)}
                   >
                     <FaEdit />
                   </button>
